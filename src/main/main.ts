@@ -86,12 +86,6 @@ ipcMain.handle('save-results', async (_event, results, videoFileName) => {
   return { success: true, path: filePath };
 });
 
-ipcMain.handle('get-file-path', async (_event, fileData, ext = 'mp4') => {
-  // Save temporary file with provided extension and return path
-  const tempPath = path.join(app.getPath('temp'), `video-${Date.now()}.${ext}`);
-  fs.writeFileSync(tempPath, Buffer.from(fileData));
-  return tempPath;
-});
 
 // Extract subtitles from video
 ipcMain.handle('extract-subtitles', async (event, videoPath) => {

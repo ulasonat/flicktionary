@@ -31,15 +31,19 @@ const FileUpload: React.FC<FileUploadProps> = ({
     setTimeout(() => setMessage(''), 3000);
   };
 
+  interface ElectronFile extends File {
+    /** Full path to the file on disk provided by Electron */
+    path: string;
+  }
+
   const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    const file = e.target.files?.[0] as ElectronFile | undefined;
     if (file) {
       setVideoFile(file);
 
-      const ext = file.name.split('.').pop()?.toLowerCase() || 'mp4';
-      const arrayBuffer = await file.arrayBuffer();
-      const tempPath = await window.electronAPI.getFilePath(arrayBuffer, ext);
-      videoFileRef.current = tempPath;
+      // Electron exposes the original file path so we can pass it directly
+      // to the main process without reading the entire file into memory.
+      videoFileRef.current = file.path || '';
 
       updateSessionData(file, subtitleFile, vocabularyWords);
     }
