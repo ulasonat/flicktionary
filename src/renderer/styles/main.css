@@ -308,7 +308,7 @@ body {
 
 .video-player-wrapper {
   width: 100%;
-  max-width: 900px;
+  max-width: none;
 }
 
 .word-info-section {
