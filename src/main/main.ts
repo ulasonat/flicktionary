@@ -9,7 +9,9 @@ let mainWindow: BrowserWindow | null = null;
 // Enable ffmpeg for subtitle extraction
 const ffmpeg = require('fluent-ffmpeg');
 const ffmpegPath = require('ffmpeg-static');
+const ffprobePath = require('ffprobe-static').path;
 ffmpeg.setFfmpegPath(ffmpegPath);
+ffmpeg.setFfprobePath(ffprobePath);
 
 if (process.platform === 'darwin') {
   app.setName('Flicktionary');
@@ -140,4 +142,80 @@ ipcMain.handle('read-file', async (_event, filePath) => {
 ipcMain.handle('open-external', async (_event, url) => {
   await shell.openExternal(url);
   return { success: true };
+});
+
+ipcMain.handle('convert-to-mp3', async (event, videoPath) => {
+  const rootDir = app.getAppPath();
+  const audioDir = path.join(rootDir, 'audio');
+  if (!fs.existsSync(audioDir)) {
+    fs.mkdirSync(audioDir, { recursive: true });
+  }
+
+  const baseName = path.parse(videoPath).name;
+  const outputPath = path.join(audioDir, `${baseName}.mp3`);
+
+  return new Promise((resolve, reject) => {
+    const parentWindow = BrowserWindow.fromWebContents(event.sender);
+    const progressWin = new BrowserWindow({
+      width: 400,
+      height: 150,
+      resizable: false,
+      parent: parentWindow || undefined,
+      modal: true,
+      show: false,
+      webPreferences: {
+        nodeIntegration: true,
+        contextIsolation: false
+      }
+    });
+
+    const progressHTML = `<!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8" />
+        <style>
+          body{margin:0;background:#1a1a1a;color:#fff;font-family:sans-serif;display:flex;flex-direction:column;justify-content:center;align-items:center;height:100%}
+          .bar{width:80%;height:20px;border:1px solid #fff;margin-top:10px}
+          .fill{height:100%;width:0;background:#4f9cf9}
+        </style>
+      </head>
+      <body>
+        <div>Converting Audio...</div>
+        <div class="bar"><div class="fill" id="fill"></div></div>
+        <div id="percent">0%</div>
+        <script>
+          const { ipcRenderer } = require('electron');
+          ipcRenderer.on('conversion-progress', (_e, p) => {
+            document.getElementById('fill').style.width = p + '%';
+            document.getElementById('percent').textContent = Math.floor(p) + '%';
+          });
+          ipcRenderer.on('conversion-done', () => {
+            document.getElementById('percent').textContent = 'Done';
+            setTimeout(()=>window.close(), 500);
+          });
+        </script>
+      </body>
+    </html>`;
+
+    progressWin.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(progressHTML));
+    progressWin.once('ready-to-show', () => progressWin.show());
+
+    ffmpeg(videoPath)
+      .outputOptions('-vn')
+      .output(outputPath)
+      .on('progress', (prog: { percent: number }) => {
+        progressWin.webContents.send('conversion-progress', prog.percent || 0);
+      })
+      .on('end', () => {
+        progressWin.webContents.send('conversion-done');
+        resolve({ success: true, path: outputPath });
+        setTimeout(() => progressWin.close(), 600);
+      })
+      .on('error', (err: Error) => {
+        progressWin.webContents.send('conversion-done');
+        reject(err);
+        setTimeout(() => progressWin.close(), 600);
+      })
+      .run();
+  });
 });
