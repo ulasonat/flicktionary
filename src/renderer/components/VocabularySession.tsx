@@ -11,6 +11,7 @@ const VocabularySession: React.FC<VocabularySessionProps> = ({
   sessionData,
   onComplete
 }) => {
+  const [wordList, setWordList] = useState(sessionData.vocabularyWords);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [results, setResults] = useState<WordResult[]>([]);
   const [videoUrl, setVideoUrl] = useState<string>('');
@@ -55,7 +56,7 @@ const VocabularySession: React.FC<VocabularySessionProps> = ({
     );
   };
 
-  const currentWord = sessionData.vocabularyWords[currentIndex];
+  const currentWord = wordList[currentIndex];
 
   const handleGenerateAudio = async () => {
     try {
@@ -89,25 +90,32 @@ const VocabularySession: React.FC<VocabularySessionProps> = ({
       setResults([...results, newResult]);
     }
 
-    // Move to next word if not at the end
-    if (currentIndex < sessionData.vocabularyWords.length - 1) {
-      setCurrentIndex(currentIndex + 1);
+    if (!known) {
+      // Append to list and advance to the new item
+      setWordList(prev => [...prev, currentWord]);
+      setCurrentIndex(i => i + 1);
+    } else if (currentIndex < wordList.length - 1) {
+      // Move to next existing word
+      setCurrentIndex(i => i + 1);
     }
   };
 
   const handleNavigation = (direction: 'prev' | 'next') => {
     if (direction === 'prev' && currentIndex > 0) {
       setCurrentIndex(currentIndex - 1);
-    } else if (direction === 'next' && currentIndex < sessionData.vocabularyWords.length - 1) {
+    } else if (direction === 'next' && currentIndex < wordList.length - 1) {
       setCurrentIndex(currentIndex + 1);
     }
   };
 
   const handleFinish = () => {
-    if (results.length === sessionData.vocabularyWords.length) {
+    if (
+      results.length === sessionData.vocabularyWords.length &&
+      results.every(r => r.known)
+    ) {
       onComplete(results);
     } else {
-      alert('Please respond to all words before finishing');
+      alert('Please respond to all words with "I already knew" before finishing');
     }
   };
 
@@ -125,10 +133,10 @@ const VocabularySession: React.FC<VocabularySessionProps> = ({
       <div className="progress-bar">
         <div 
           className="progress-fill" 
-          style={{ width: `${((currentIndex + 1) / sessionData.vocabularyWords.length) * 100}%` }}
+          style={{ width: `${((currentIndex + 1) / wordList.length) * 100}%` }}
         />
         <span className="progress-text">
-          Word {currentIndex + 1} of {sessionData.vocabularyWords.length}
+          Word {currentIndex + 1} of {wordList.length}
         </span>
       </div>
 
@@ -194,7 +202,7 @@ const VocabularySession: React.FC<VocabularySessionProps> = ({
             <button
               onClick={() => handleNavigation('next')}
               disabled={
-                currentIndex === sessionData.vocabularyWords.length - 1 ||
+                currentIndex === wordList.length - 1 ||
                 !isCurrentAnswered()
               }
               className="nav-btn"
@@ -203,7 +211,7 @@ const VocabularySession: React.FC<VocabularySessionProps> = ({
             </button>
           </div>
 
-          {currentIndex === sessionData.vocabularyWords.length - 1 && (
+          {currentIndex === wordList.length - 1 && (
             <button onClick={handleFinish} className="finish-button">
               Finish Session
             </button>
