@@ -4,6 +4,7 @@ import Player from 'video.js/dist/types/player';
 
 interface VideoPlayerProps {
   videoUrl: string;
+  videoType: string;
   subtitleUrl: string;
   beginTimestamp: string;
   endTimestamp: string;
@@ -11,6 +12,7 @@ interface VideoPlayerProps {
 
 const VideoPlayer: React.FC<VideoPlayerProps> = ({
   videoUrl,
+  videoType,
   subtitleUrl,
   beginTimestamp,
   endTimestamp
@@ -74,7 +76,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         className="video-js vjs-default-skin vjs-big-play-centered"
         playsInline
       >
-        <source src={videoUrl} type="video/mp4" />
+        <source src={videoUrl} type={videoType || 'video/mp4'} />
         {subtitleUrl && (
           <track
             kind="subtitles"

@@ -118,6 +118,7 @@ const VocabularySession: React.FC<VocabularySessionProps> = ({
         <div className="video-section">
           <VideoPlayer
             videoUrl={videoUrl}
+            videoType={sessionData.videoFile.type}
             subtitleUrl={subtitleUrl}
             beginTimestamp={currentWord.beginTimestamp}
             endTimestamp={currentWord.endTimestamp}
