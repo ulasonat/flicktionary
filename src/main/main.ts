@@ -37,7 +37,6 @@ function createWindow() {
     titleBarStyle: 'hiddenInset',
     backgroundColor: '#1a1a1a',
     title: 'Flicktionary',
-    icon: iconPath
   });
 
   mainWindow.once('ready-to-show', () => {
