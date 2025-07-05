@@ -4,14 +4,16 @@ import Player from 'video.js/dist/types/player';
 
 interface VideoPlayerProps {
   videoUrl: string;
+  subtitleUrl: string;
   beginTimestamp: string;
   endTimestamp: string;
 }
 
-const VideoPlayer: React.FC<VideoPlayerProps> = ({ 
-  videoUrl, 
-  beginTimestamp, 
-  endTimestamp 
+const VideoPlayer: React.FC<VideoPlayerProps> = ({
+  videoUrl,
+  subtitleUrl,
+  beginTimestamp,
+  endTimestamp
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const playerRef = useRef<Player | null>(null);
@@ -38,17 +40,19 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     playerRef.current = player;
 
     // Set up video segment
-    const startTime = timestampToSeconds(beginTimestamp) - 1;
+    const startTime = Math.max(0, timestampToSeconds(beginTimestamp) - 1);
     const endTime = timestampToSeconds(endTimestamp) + 1;
 
     player.ready(() => {
       player.currentTime(startTime);
+      player.play();
       
       player.on('timeupdate', () => {
         const currentTime = player.currentTime();
         if (currentTime && currentTime >= endTime) {
           player.pause();
           player.currentTime(startTime);
+          player.play();
         }
       });
     });
@@ -60,7 +64,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         playerRef.current = null;
       }
     };
-  }, [videoUrl, beginTimestamp, endTimestamp]);
+  }, [videoUrl, subtitleUrl, beginTimestamp, endTimestamp]);
 
   return (
     <div className="video-player-wrapper">
@@ -70,6 +74,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         playsInline
       >
         <source src={videoUrl} type="video/mp4" />
+        {subtitleUrl && (
+          <track
+            kind="subtitles"
+            src={subtitleUrl}
+            label="English"
+            default
+          />
+        )}
       </video>
     </div>
   );

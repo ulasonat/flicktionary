@@ -473,6 +473,11 @@ body {
   background: #4f9cf9;
 }
 
+/* Increase subtitle size */
+.video-js .vjs-text-track-display {
+  font-size: 1.2em;
+}
+
 /* Scrollbar Styles */
 ::-webkit-scrollbar {
   width: 10px;
