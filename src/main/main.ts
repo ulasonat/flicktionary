@@ -158,8 +158,13 @@ ipcMain.handle('convert-video', async (_event, inputPath, outputName) => {
     progressWin.loadFile(path.join(__dirname, 'progress.html'));
 
     const start = Date.now();
+    console.log('FFmpeg input:', inputPath);
+    console.log('FFmpeg output:', outputPath);
     ffmpeg(inputPath)
       .outputOptions('-c:v libx264', '-preset veryfast', '-crf 28', '-c:a aac')
+      .on('start', (cmd: string) => {
+        console.log('FFmpeg command:', cmd);
+      })
       .on('progress', (p: any) => {
         const percent = p.percent || 0;
         const elapsed = (Date.now() - start) / 1000;
@@ -168,10 +173,12 @@ ipcMain.handle('convert-video', async (_event, inputPath, outputName) => {
         progressWin.webContents.send('conversion-progress', percent, remaining.toFixed(0));
       })
       .on('end', () => {
+        console.log('FFmpeg conversion completed');
         progressWin.close();
         resolve({ success: true, outputPath });
       })
       .on('error', (err: Error) => {
+        console.error('FFmpeg conversion error:', err);
         progressWin.close();
         resolve({ success: false, error: err.message });
       })
