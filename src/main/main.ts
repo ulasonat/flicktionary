@@ -6,10 +6,12 @@ import Store from 'electron-store';
 const store = new Store();
 let mainWindow: BrowserWindow | null = null;
 
-// Enable ffmpeg for subtitle extraction
+// Enable ffmpeg and ffprobe for media processing
 const ffmpeg = require('fluent-ffmpeg');
 const ffmpegPath = require('ffmpeg-static');
+const ffprobePath = require('ffprobe-static').path;
 ffmpeg.setFfmpegPath(ffmpegPath);
+ffmpeg.setFfprobePath(ffprobePath);
 
 if (process.platform === 'darwin') {
   app.setName('Flicktionary');
