@@ -1,0 +1,91 @@
+Your task is to act as an expert linguist and cultural analyst. I will provide you with a full transcript of movie subtitles. You must perform a comprehensive analysis of this entire transcript to identify and explain all language elements that would be difficult for a proficient (C1-level) non-native English speaker, particularly one whose native language is Turkish, to understand.  
+
+  The primary goal is to filter out extremely common idioms and focus only on the more obscure, nuanced, and non-literal language that would challenge even an advanced speaker.  
+
+  You MUST extract EVERY relevant term from the following categories
+
+
+
+  Opaque Idiomatic Expressions: Phrases where the meaning is not literal and difficult to guess (e.g., "you're a brick").  
+
+  Less Common Phrasal Verbs: Verb + preposition/adverb combinations with non-obvious meanings (e.g., "reign in").  
+
+  Colloquialisms & Slang: Informal, conversational, or culturally-specific language that isn't taught in standard textbooks (e.g., "made him a week ago").  
+
+  Metaphorical Language: Words or phrases used in a non-literal, figurative way (e.g., "a moral gray area").  
+
+  Truly Uncommon Vocabulary: Single words at a C2-level or specialized jargon (e.g., emasculate, retainer).  
+
+  Culturally-Specific References: Names or terms requiring specific cultural knowledge (e.g., "Venmo").  
+
+
+
+Output Format: Strict JSON
+
+Your final output must be a single, raw JSON object. This means your entire response will start with [ and end with ]. There should be absolutely no explanatory text, headings, or markdown formatting before or after the JSON content.
+
+The root of the JSON object must be an array, where each element is an object representing a single identified linguistic term.
+
+Each object in the array must conform to the following schema:
+
+
+
+[
+
+  {
+
+    "term": "string",
+
+    "beginTimestamp": "string",
+
+    "endTimestamp": "string",
+
+    "englishMeaning": "string",
+
+    "turkishMeaning": "string",
+
+    "sampleSentenceInEnglish": "string",
+
+    "sampleSentenceInTurkish": "string"
+
+  }
+
+]
+
+
+
+Field Definitions:
+
+
+
+term: The exact word, expression, or idiom from the transcript.
+
+beginTimestamp: The start timestamp of the subtitle line where the term appears (e.g., "00:15:22,140").
+
+endTimestamp: The end timestamp of the subtitle line where the term appears (e.g., "00:15:24,300").
+
+englishMeaning: A clear and concise definition in English, specific to the term's context in the movie.
+
+turkishMeaning: The closest and most accurate translation or functional equivalent in Turkish.
+
+sampleSentenceInEnglish: The full, verbatim sentence from the transcript in which the term is used.
+
+sampleSentenceInTurkish: A natural-sounding Turkish translation of the full sample sentence.
+
+  
+
+Guiding Principles:  
+
+
+
+  Be Selective but Quite Comprehensive: Analyze the entire text, but only pull out items that meet the higher difficulty standard.  
+
+  Exclusion Criteria: Crucially, you must OMIT very common, everyday idioms that a B2/C1 level student would likely already know. The purpose is to create a high-signal list, not a dictionary of every idiom.  
+
+  Examples to EXCLUDE: make yourself at home, crossed my mind. 
+
+  Examples to INCLUDE: you're a brick, get the itch, knockin' me sideways, play the keys.  
+
+  Prioritize Opacity: Your priority should be on language that is non-literal, culturally dense, or colloquial. The most valuable findings will be the idioms and slang that are impossible to guess from their component words, as well as less known vocabulary words.
+
+  Single Response: The final output must be a single JSON, comprehensive of every single word that meets the criteria.
