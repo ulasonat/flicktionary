@@ -192,6 +192,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
       onFilesUploaded({
         videoFile: video,
         subtitleFile: subtitle,
+        videoFilePath: videoFileRef.current,
         vocabularyWords: words
       });
     }
