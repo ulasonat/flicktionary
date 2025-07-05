@@ -8,6 +8,8 @@ declare global {
       extractSubtitles: (videoPath: string) => Promise<{ success: boolean; content?: string; error?: string }>;
       getApiKey: () => Promise<string | null>;
       saveApiKey: (apiKey: string) => Promise<{ success: boolean }>;
+      openExternal: (url: string) => Promise<{ success: boolean }>;
+      readFile: (filePath: string) => Promise<{ success: boolean; content?: string; error?: string }>;
     };
   }
 }

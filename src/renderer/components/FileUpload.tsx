@@ -23,6 +23,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState<'info' | 'error' | 'success'>('info');
   const videoFileRef = useRef<string>('');
+  const [geminiVisited, setGeminiVisited] = useState(false);
 
   const showMessage = (msg: string, type: 'info' | 'error' | 'success' = 'info') => {
     setMessage(msg);
@@ -94,14 +95,37 @@ const FileUpload: React.FC<FileUploadProps> = ({
     }
   };
 
+  const handleGoToGemini = async () => {
+    if (!subtitleFile) {
+      showMessage('Please select subtitles first', 'error');
+      return;
+    }
+
+    try {
+      const promptText = await loadPrompt();
+      const fullText = `${promptText}\n\n${subtitleContent}`;
+      await navigator.clipboard.writeText(fullText);
+      if (window.electronAPI?.openExternal) {
+        await window.electronAPI.openExternal('https://gemini.google.com/app');
+      } else {
+        window.open('https://gemini.google.com/app', '_blank');
+      }
+      setGeminiVisited(true);
+    } catch (error) {
+      showMessage('Failed to open Gemini', 'error');
+    }
+  };
+
   const loadPrompt = async (): Promise<string> => {
     try {
-      const response = await fetch('./prompt.txt');
-      return await response.text();
-    } catch (error) {
-      // Fallback prompt if file not found
-      return `Your task is to act as an expert linguist and cultural analyst. I will provide you with a full transcript of movie subtitles. You must perform a comprehensive analysis of this entire transcript to identify and explain all language elements that would be difficult for a proficient (C1-level) non-native English speaker, particularly one whose native language is Turkish, to understand...`;
+      const result = await window.electronAPI.readFile("prompt.txt");
+      if (result.success && result.content) {
+        return result.content;
+      }
+    } catch {
+      // Ignore and fall back to default prompt
     }
+    return `Your task is to act as an expert linguist and cultural analyst. I will provide you with a full transcript of movie subtitles. You must perform a comprehensive analysis of this entire transcript to identify and explain all language elements that would be difficult for a proficient (C1-level) non-native English speaker, particularly one whose native language is Turkish, to understand...`;
   };
 
   const handleGenerateVocabulary = async () => {
@@ -222,11 +246,14 @@ const FileUpload: React.FC<FileUploadProps> = ({
         <div className="upload-item">
           <label>Vocabulary JSON</label>
           <div className="vocabulary-controls">
-            <button onClick={handlePasteJSON} className="vocab-button">
-              📋 Paste from Clipboard
+            <button
+              onClick={geminiVisited ? handlePasteJSON : handleGoToGemini}
+              className="vocab-button"
+            >
+              {geminiVisited ? '📋 Paste from Clipboard' : 'Go to Gemini'}
             </button>
-            <button 
-              onClick={handleGenerateVocabulary} 
+            <button
+              onClick={handleGenerateVocabulary}
               className="vocab-button generate"
               disabled={!subtitleFile || isGenerating}
             >
