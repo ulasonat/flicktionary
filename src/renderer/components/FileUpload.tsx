@@ -22,7 +22,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
   const [isGenerating, setIsGenerating] = useState(false);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState<'info' | 'error' | 'success'>('info');
-  const videoFileRef = useRef<string>('');
+  const videoPathRef = useRef<string>('');
   const [geminiVisited, setGeminiVisited] = useState(false);
 
   const showMessage = (msg: string, type: 'info' | 'error' | 'success' = 'info') => {
@@ -38,7 +38,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
       // Create temporary file path for subtitle extraction
       const arrayBuffer = await file.arrayBuffer();
       const filePath = await window.electronAPI.getFilePath(arrayBuffer, file.name);
-      videoFileRef.current = filePath;
+      videoPathRef.current = filePath;
       updateSessionData(file, subtitleFile, vocabularyWords);
     }
   };
@@ -62,7 +62,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
     showMessage('Extracting subtitles from video...', 'info');
     
     try {
-      const result = await window.electronAPI.extractSubtitles(videoFileRef.current);
+      const result = await window.electronAPI.extractSubtitles(videoPathRef.current);
       
       if (result.success) {
         // Create a subtitle file from extracted content
@@ -184,13 +184,14 @@ const FileUpload: React.FC<FileUploadProps> = ({
   };
 
   const updateSessionData = (
-    video: File | null, 
-    subtitle: File | null, 
+    video: File | null,
+    subtitle: File | null,
     words: VocabularyWord[]
   ) => {
     if (video && subtitle && words.length > 0) {
       onFilesUploaded({
         videoFile: video,
+        videoPath: videoPathRef.current,
         subtitleFile: subtitle,
         vocabularyWords: words
       });

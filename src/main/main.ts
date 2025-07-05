@@ -84,8 +84,8 @@ ipcMain.handle('save-results', async (_event, results, videoFileName) => {
   return { success: true, path: filePath };
 });
 
-ipcMain.handle('get-file-path', async (event, fileData, fileName) => {
-  // Save temporary file with the same extension as the uploaded file
+ipcMain.handle('get-file-path', async (_event, fileData, fileName) => {
+  // Save temporary file and convert to mp4 if needed for playback
   let ext = '.mp4';
   if (typeof fileName === 'string') {
     const parsed = path.extname(fileName);
@@ -96,6 +96,25 @@ ipcMain.handle('get-file-path', async (event, fileData, fileName) => {
 
   const tempPath = path.join(app.getPath('temp'), `video-${Date.now()}${ext}`);
   fs.writeFileSync(tempPath, Buffer.from(fileData));
+
+  if (ext !== '.mp4') {
+    const mp4Path = path.join(app.getPath('temp'), `video-${Date.now()}.mp4`);
+    await new Promise((resolve, reject) => {
+      ffmpeg(tempPath)
+        .outputOptions('-c copy')
+        .output(mp4Path)
+        .on('end', resolve)
+        .on('error', reject)
+        .run();
+    });
+    try {
+      fs.unlinkSync(tempPath);
+    } catch (err) {
+      // Ignore cleanup errors
+    }
+    return mp4Path;
+  }
+
   return tempPath;
 });
 
