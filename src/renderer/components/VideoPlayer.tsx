@@ -62,7 +62,25 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         playerRef.current = null;
       }
     };
-  }, [videoUrl, subtitleUrl, beginTimestamp, endTimestamp]);
+  }, [videoUrl, beginTimestamp, endTimestamp]);
+
+  useEffect(() => {
+    const player = playerRef.current;
+    if (player && subtitleUrl) {
+      const track = player.addRemoteTextTrack(
+        {
+          kind: 'subtitles',
+          src: subtitleUrl,
+          label: 'English',
+          default: true
+        },
+        false
+      );
+      return () => {
+        player.removeRemoteTextTrack(track);
+      };
+    }
+  }, [subtitleUrl]);
 
   return (
     <div className="video-player-wrapper">
