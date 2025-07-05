@@ -70,6 +70,10 @@ const VocabularySession: React.FC<VocabularySessionProps> = ({
     return result?.known;
   };
 
+  const isCurrentAnswered = () => {
+    return results.some(r => r.word.term === currentWord.term);
+  };
+
   return (
     <div className="vocabulary-session">
       <div className="progress-bar">
@@ -136,9 +140,12 @@ const VocabularySession: React.FC<VocabularySessionProps> = ({
             >
               ← Previous
             </button>
-            <button 
+            <button
               onClick={() => handleNavigation('next')}
-              disabled={currentIndex === sessionData.vocabularyWords.length - 1}
+              disabled={
+                currentIndex === sessionData.vocabularyWords.length - 1 ||
+                !isCurrentAnswered()
+              }
               className="nav-btn"
             >
               Next →
