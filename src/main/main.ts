@@ -11,6 +11,10 @@ const ffmpeg = require('fluent-ffmpeg');
 const ffmpegPath = require('ffmpeg-static');
 ffmpeg.setFfmpegPath(ffmpegPath);
 
+if (process.platform === 'darwin') {
+  app.setName('Flicktionary');
+}
+
 function createWindow() {
   const iconPath = path.join(__dirname, 'png', 'flicktionary_logo.png');
 
