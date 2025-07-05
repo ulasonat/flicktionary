@@ -1,14 +1,25 @@
 import React, { useState } from 'react';
 import FileUpload from './components/FileUpload';
 import VocabularySession from './components/VocabularySession';
-import { SessionData } from './types';
+import { SessionData, VocabularyWord } from './types';
 
 const App: React.FC = () => {
   const [sessionData, setSessionData] = useState<SessionData | null>(null);
   const [sessionStarted, setSessionStarted] = useState(false);
+  const [hasRepeated, setHasRepeated] = useState(false);
+
+  const shuffleArray = <T,>(arr: T[]): T[] => {
+    const array = [...arr];
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+  };
 
   const handleFilesUploaded = (data: SessionData) => {
     setSessionData(data);
+    setHasRepeated(false);
   };
 
   const handleStartSession = () => {
@@ -44,9 +55,20 @@ const App: React.FC = () => {
       alert('Results logged to console (Electron API not available)');
     }
 
-    // Reset session
-    setSessionStarted(false);
-    setSessionData(null);
+    if (!hasRepeated && unknownWords.length > 0 && sessionData) {
+      const shuffled = shuffleArray<VocabularyWord>(unknownWords);
+      const newSessionData: SessionData = {
+        ...sessionData,
+        vocabularyWords: shuffled
+      };
+      setSessionData(newSessionData);
+      setHasRepeated(true);
+      setSessionStarted(true);
+    } else {
+      setSessionStarted(false);
+      setSessionData(null);
+      setHasRepeated(false);
+    }
   };
 
   return (
