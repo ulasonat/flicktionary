@@ -513,6 +513,19 @@ body {
   animation: fadeIn 0.3s ease;
 }
 
+.audio-btn {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(0,0,0,0.6);
+  color: #fff;
+  border: none;
+  padding: 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  z-index: 5;
+}
+
 /* Responsive Design */
 @media (max-width: 1200px) {
   .video-section {

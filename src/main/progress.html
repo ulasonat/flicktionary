@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Converting...</title>
+  <style>
+    body { margin: 20px; font-family: sans-serif; background: #1a1a1a; color: #fff; }
+    .bar { width: 100%; height: 20px; background: #333; border-radius: 4px; overflow: hidden; }
+    .fill { height: 100%; width: 0%; background: #4caf50; transition: width 0.2s; }
+  </style>
+</head>
+<body>
+  <h3>Converting audio...</h3>
+  <div class="bar"><div id="fill" class="fill"></div></div>
+<script>
+  window.electronAPI.onConvertProgress((percent) => {
+    const fill = document.getElementById('fill');
+    if (fill) fill.style.width = percent + '%';
+  });
+</script>
+</body>
+</html>

@@ -8,6 +8,7 @@ interface VideoPlayerProps {
   beginTimestamp: string;
   endTimestamp: string;
   videoFileName?: string;
+  audioUrl?: string;
 }
 
 const VideoPlayer: React.FC<VideoPlayerProps> = ({
@@ -15,10 +16,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   subtitleUrl,
   beginTimestamp,
   endTimestamp,
-  videoFileName = ''
+  videoFileName = '',
+  audioUrl
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const playerRef = useRef<Player | null>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   // Convert timestamp to seconds
   const timestampToSeconds = (timestamp: string): number => {
@@ -63,12 +66,23 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
     playerRef.current = player;
 
+    const audio = audioRef.current;
+    if (audioUrl && audio) {
+      audio.src = audioUrl;
+      audio.currentTime = Math.max(0, timestampToSeconds(beginTimestamp) - 2);
+    }
+
     // Set up video segment
     const startTime = Math.max(0, timestampToSeconds(beginTimestamp) - 2);
     const endTime = timestampToSeconds(endTimestamp) + 2;
 
     player.ready(() => {
       player.currentTime(startTime);
+      if (audioUrl && audio) {
+        audio.currentTime = startTime;
+        audio.play();
+        player.muted(true);
+      }
       player.play();
 
       const tracks = player.textTracks();
@@ -76,13 +90,29 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         tracks[i].mode = 'showing';
       }
       
-      player.on('timeupdate', () => {
+      const sync = () => {
         const currentTime = player.currentTime();
         if (currentTime && currentTime >= endTime) {
           player.pause();
           player.currentTime(startTime);
+          if (audioUrl && audio) {
+            audio.pause();
+            audio.currentTime = startTime;
+          }
         }
+        if (audioUrl && audio && Math.abs(audio.currentTime - currentTime) > 0.3) {
+          audio.currentTime = currentTime;
+        }
+      };
+      player.on('timeupdate', sync);
+      player.on('seeking', sync);
+      player.on('play', () => {
+        if (audioUrl && audio) audio.play();
       });
+      player.on('pause', () => {
+        if (audioUrl && audio) audio.pause();
+      });
+      
     });
 
     return () => {
@@ -92,7 +122,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         playerRef.current = null;
       }
     };
-  }, [videoUrl, beginTimestamp, endTimestamp, videoFileName]);
+  }, [videoUrl, beginTimestamp, endTimestamp, videoFileName, audioUrl]);
 
   const mimeType = getMimeType(videoFileName);
 
@@ -102,6 +132,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         ref={videoRef}
         className="video-js vjs-default-skin vjs-big-play-centered"
         playsInline
+        muted={!!audioUrl}
       >
         <source src={videoUrl} type={mimeType} />
         {subtitleUrl && (
@@ -114,6 +145,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           />
         )}
       </video>
+      {audioUrl && <audio ref={audioRef} hidden />}
     </div>
   );
 };

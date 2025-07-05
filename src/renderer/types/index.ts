@@ -11,6 +11,7 @@ export interface VocabularyWord {
 export interface SessionData {
   videoFile: File;
   subtitleFile: File;
+  videoFilePath?: string;
   vocabularyWords: VocabularyWord[];
 }
 

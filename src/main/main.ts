@@ -141,3 +141,47 @@ ipcMain.handle('open-external', async (_event, url) => {
   await shell.openExternal(url);
   return { success: true };
 });
+
+ipcMain.handle('convert-to-mp3', async (event, videoPath: string, fileName: string) => {
+  return new Promise(resolve => {
+    const rootDir = app.getAppPath();
+    const audioDir = path.join(rootDir, 'audio');
+    if (!fs.existsSync(audioDir)) {
+      fs.mkdirSync(audioDir, { recursive: true });
+    }
+
+    const base = path.parse(fileName).name;
+    const mp3Path = path.join(audioDir, `${base}.mp3`);
+
+    const progressWin = new BrowserWindow({
+      width: 400,
+      height: 120,
+      parent: mainWindow || undefined,
+      modal: true,
+      show: false,
+      webPreferences: {
+        contextIsolation: true,
+        preload: path.join(__dirname, 'preload.js')
+      }
+    });
+
+    progressWin.loadFile(path.join(__dirname, 'progress.html'));
+    progressWin.once('ready-to-show', () => progressWin.show());
+
+    ffmpeg(videoPath)
+      .outputOptions('-vn')
+      .output(mp3Path)
+      .on('progress', (p: any) => {
+        progressWin.webContents.send('convert-progress', p.percent || 0);
+      })
+      .on('end', () => {
+        progressWin.close();
+        resolve({ success: true, path: mp3Path });
+      })
+      .on('error', (err: Error) => {
+        progressWin.close();
+        resolve({ success: false, error: err.message });
+      })
+      .run();
+  });
+});
