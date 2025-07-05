@@ -16,6 +16,7 @@ function createWindow() {
     width: 1400,
     height: 900,
     fullscreen: true, // Launch in fullscreen
+    icon: path.join(__dirname, 'png', 'flicktionary_logo.png'),
     fullscreenable: true,
     webPreferences: {
       nodeIntegration: false,
