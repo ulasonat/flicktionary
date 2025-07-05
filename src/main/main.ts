@@ -191,7 +191,6 @@ ipcMain.handle('convert-to-mp3', async (event, videoPath) => {
           });
           ipcRenderer.on('conversion-done', () => {
             document.getElementById('percent').textContent = 'Done';
-            setTimeout(()=>window.close(), 500);
           });
         </script>
       </body>
@@ -204,17 +203,25 @@ ipcMain.handle('convert-to-mp3', async (event, videoPath) => {
       .outputOptions('-vn')
       .output(outputPath)
       .on('progress', (prog: { percent: number }) => {
-        progressWin.webContents.send('conversion-progress', prog.percent || 0);
+        if (!progressWin.isDestroyed()) {
+          progressWin.webContents.send('conversion-progress', prog.percent || 0);
+        }
       })
       .on('end', () => {
-        progressWin.webContents.send('conversion-done');
+        if (!progressWin.isDestroyed()) {
+          progressWin.webContents.send('conversion-done');
+        }
         resolve({ success: true, path: outputPath });
-        setTimeout(() => progressWin.close(), 600);
+        if (!progressWin.isDestroyed()) {
+          progressWin.close();
+        }
       })
       .on('error', (err: Error) => {
-        progressWin.webContents.send('conversion-done');
+        if (!progressWin.isDestroyed()) {
+          progressWin.webContents.send('conversion-done');
+          progressWin.close();
+        }
         reject(err);
-        setTimeout(() => progressWin.close(), 600);
       })
       .run();
   });
