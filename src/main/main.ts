@@ -84,9 +84,9 @@ ipcMain.handle('save-results', async (_event, results, videoFileName) => {
   return { success: true, path: filePath };
 });
 
-ipcMain.handle('get-file-path', async (event, fileData) => {
-  // Save temporary file and return path for video player
-  const tempPath = path.join(app.getPath('temp'), `video-${Date.now()}.mp4`);
+ipcMain.handle('get-file-path', async (_event, fileData, ext = 'mp4') => {
+  // Save temporary file with provided extension and return path
+  const tempPath = path.join(app.getPath('temp'), `video-${Date.now()}.${ext}`);
   fs.writeFileSync(tempPath, Buffer.from(fileData));
   return tempPath;
 });
@@ -138,4 +138,57 @@ ipcMain.handle('read-file', async (_event, filePath) => {
 ipcMain.handle('open-external', async (_event, url) => {
   await shell.openExternal(url);
   return { success: true };
+});
+
+// Convert video (e.g., MKV -> MP4) with progress window
+ipcMain.handle('convert-video', async (_event, inputPath, outputName) => {
+  return new Promise(resolve => {
+    const rootDir = app.getAppPath();
+    const convertedDir = path.join(rootDir, 'converted');
+    if (!fs.existsSync(convertedDir)) {
+      fs.mkdirSync(convertedDir, { recursive: true });
+    }
+
+    const outputPath = path.join(convertedDir, `${outputName}.mp4`);
+
+    const progressWin = new BrowserWindow({
+      width: 400,
+      height: 100,
+      parent: mainWindow || undefined,
+      modal: true,
+      frame: false,
+      webPreferences: { nodeIntegration: true, contextIsolation: false }
+    });
+    progressWin.loadFile(path.join(__dirname, 'progress.html'));
+
+    const start = Date.now();
+    ffmpeg(inputPath)
+      .outputOptions('-c:v libx264', '-preset veryfast', '-crf 28', '-c:a aac')
+      .on('progress', (p: any) => {
+        const percent = p.percent || 0;
+        const elapsed = (Date.now() - start) / 1000;
+        const estTotal = percent > 0 ? elapsed / (percent / 100) : 0;
+        const remaining = Math.max(0, estTotal - elapsed);
+        progressWin.webContents.send('conversion-progress', percent, remaining.toFixed(0));
+      })
+      .on('end', () => {
+        progressWin.close();
+        resolve({ success: true, outputPath });
+      })
+      .on('error', (err: Error) => {
+        progressWin.close();
+        resolve({ success: false, error: err.message });
+      })
+      .save(outputPath);
+  });
+});
+
+// Read a file as binary (Buffer)
+ipcMain.handle('read-binary-file', async (_event, filePath) => {
+  try {
+    const data = fs.readFileSync(filePath);
+    return { success: true, data };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
 });

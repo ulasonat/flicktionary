@@ -34,12 +34,37 @@ const FileUpload: React.FC<FileUploadProps> = ({
   const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setVideoFile(file);
-      // Create temporary file path for subtitle extraction
+      const ext = file.name.split('.').pop()?.toLowerCase() || 'mp4';
+      // Save file to a temp path
       const arrayBuffer = await file.arrayBuffer();
-      const filePath = await window.electronAPI.getFilePath(arrayBuffer);
-      videoFileRef.current = filePath;
-      updateSessionData(file, subtitleFile, vocabularyWords);
+      let tempPath = await window.electronAPI.getFilePath(arrayBuffer, ext);
+      videoFileRef.current = tempPath;
+
+      let finalFile = file;
+      if (ext === 'mkv') {
+        showMessage('Converting MKV to MP4...', 'info');
+        const baseName = file.name.replace(/\.mkv$/i, '');
+        const result = await window.electronAPI.convertVideo(tempPath, baseName);
+        if (result.success && result.outputPath) {
+          const dataRes = await window.electronAPI.readBinaryFile(result.outputPath);
+          if (dataRes.success && dataRes.data) {
+            const blob = new Blob([new Uint8Array(dataRes.data as ArrayBuffer)], { type: 'video/mp4' });
+            finalFile = new File([blob], `${baseName}.mp4`, { type: 'video/mp4' });
+            tempPath = result.outputPath;
+            showMessage('Conversion complete!', 'success');
+          } else {
+            showMessage('Failed to load converted file', 'error');
+            return;
+          }
+        } else {
+          showMessage('Video conversion failed', 'error');
+          return;
+        }
+      }
+
+      setVideoFile(finalFile);
+      videoFileRef.current = tempPath;
+      updateSessionData(finalFile, subtitleFile, vocabularyWords);
     }
   };
 
@@ -66,13 +91,13 @@ const FileUpload: React.FC<FileUploadProps> = ({
       
       if (result.success) {
         // Create a subtitle file from extracted content
-        const subtitleBlob = new Blob([result.content], { type: 'text/plain' });
+        const subtitleBlob = new Blob([result.content || ''], { type: 'text/plain' });
         const subtitleFile = new File([subtitleBlob], 'extracted-subtitles.srt', {
           type: 'text/plain'
         });
         
         setSubtitleFile(subtitleFile);
-        setSubtitleContent(result.content);
+          setSubtitleContent(result.content || '');
         updateSessionData(videoFile, subtitleFile, vocabularyWords);
         showMessage('Subtitles extracted successfully!', 'success');
       } else {
