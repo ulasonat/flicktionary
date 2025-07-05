@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import FileUpload from './components/FileUpload';
 import VocabularySession from './components/VocabularySession';
-import { SessionData } from './types';
+import { SessionData, WordResult } from './types';
 
 const App: React.FC = () => {
   const [sessionData, setSessionData] = useState<SessionData | null>(null);
@@ -17,10 +17,10 @@ const App: React.FC = () => {
     }
   };
 
-  const handleSessionComplete = async (results: any[]) => {
-    // Filter out known words
+  const handleSessionComplete = async (results: WordResult[]) => {
+    // Collect words the user ever marked as unknown
     const unknownWords = results
-      .filter(result => !result.known)
+      .filter(result => result.wasUnknown)
       .map(result => result.word);
 
     // Save results

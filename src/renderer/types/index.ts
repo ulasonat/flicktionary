@@ -19,4 +19,6 @@ export interface SessionData {
 export interface WordResult {
   word: VocabularyWord;
   known: boolean;
+  /** Whether the user ever marked this word as unknown */
+  wasUnknown: boolean;
 }
