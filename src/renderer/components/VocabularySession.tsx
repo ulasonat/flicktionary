@@ -75,19 +75,26 @@ const VocabularySession: React.FC<VocabularySessionProps> = ({
   };
   
   const handleResponse = (known: boolean) => {
-    const newResult: WordResult = {
-      word: currentWord,
-      known
-    };
-
-    // Update or add result
     const existingIndex = results.findIndex(r => r.word.term === currentWord.term);
+
+    const updatedResult: WordResult = existingIndex >= 0
+      ? {
+          word: currentWord,
+          known,
+          wasUnknown: results[existingIndex].wasUnknown || !known
+        }
+      : {
+          word: currentWord,
+          known,
+          wasUnknown: !known
+        };
+
     if (existingIndex >= 0) {
       const newResults = [...results];
-      newResults[existingIndex] = newResult;
+      newResults[existingIndex] = updatedResult;
       setResults(newResults);
     } else {
-      setResults([...results, newResult]);
+      setResults([...results, updatedResult]);
     }
 
     if (!known) {
