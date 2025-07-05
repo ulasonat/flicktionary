@@ -20,7 +20,7 @@ Learn English vocabulary **in context** by watching movie clips.
 | **Node.js** | ≥ 18 |
 | **npm** | comes with Node |
 | **macOS** | app runs natively; Windows/Linux not packaged yet |
-| **Google AI key** | set `GEMINI_API_KEY` |
+| **Google AI key** | set `GEMINI_API_KEY` (via env or `.env` file) |
 
 ---
 
@@ -34,6 +34,9 @@ npm install
 
 # 2 Provide your Gemini key once
 echo "GEMINI_API_KEY=your-key" > .env
+
+# The app loads this key automatically on startup and stores it so you only need
+# to provide it the first time.
 
 # 3 Hot‑reload React while hacking
 npm run dev          # starts webpack-dev-server

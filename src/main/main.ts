@@ -3,6 +3,17 @@ import * as path from 'path';
 import * as fs from 'fs';
 import Store from 'electron-store';
 
+// Load environment variables from a .env file if present
+const envPath = path.join(__dirname, '..', '.env');
+if (fs.existsSync(envPath)) {
+  for (const line of fs.readFileSync(envPath, 'utf8').split(/\r?\n/)) {
+    const match = line.match(/^\s*([A-Za-z0-9_]+)\s*=\s*(.*)\s*$/);
+    if (match && !process.env[match[1]]) {
+      process.env[match[1]] = match[2];
+    }
+  }
+}
+
 const store = new Store();
 let mainWindow: BrowserWindow | null = null;
 
@@ -118,7 +129,14 @@ ipcMain.handle('extract-subtitles', async (event, videoPath) => {
 
 // API Key management
 ipcMain.handle('get-api-key', async () => {
-  return store.get('gemini-api-key', null);
+  let key = store.get('gemini-api-key', null) as string | null;
+  if (!key) {
+    key = process.env.GEMINI_API_KEY || null;
+    if (key) {
+      store.set('gemini-api-key', key);
+    }
+  }
+  return key;
 });
 
 ipcMain.handle('save-api-key', async (event, apiKey) => {
