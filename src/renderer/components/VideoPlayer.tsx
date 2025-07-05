@@ -38,12 +38,16 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     playerRef.current = player;
 
     // Set up video segment
-    const startTime = timestampToSeconds(beginTimestamp) - 1;
+    // Clamp to zero in case the segment begins near the start of the video
+    const startTime = Math.max(0, timestampToSeconds(beginTimestamp) - 1);
     const endTime = timestampToSeconds(endTimestamp) + 1;
 
     player.ready(() => {
-      player.currentTime(startTime);
-      
+      // Wait until metadata is loaded before seeking to avoid blank playback
+      player.one('loadedmetadata', () => {
+        player.currentTime(startTime);
+      });
+
       player.on('timeupdate', () => {
         const currentTime = player.currentTime();
         if (currentTime && currentTime >= endTime) {
