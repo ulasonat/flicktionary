@@ -35,9 +35,9 @@ const FileUpload: React.FC<FileUploadProps> = ({
     const file = e.target.files?.[0];
     if (file) {
       setVideoFile(file);
-      // Create temporary file path for subtitle extraction
+      // Create temporary file path for subtitle extraction with original extension
       const arrayBuffer = await file.arrayBuffer();
-      const filePath = await window.electronAPI.getFilePath(arrayBuffer);
+      const filePath = await window.electronAPI.getFilePath(arrayBuffer, file.name);
       videoFileRef.current = filePath;
       updateSessionData(file, subtitleFile, vocabularyWords);
     }
@@ -215,10 +215,10 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
       <div className="upload-section">
         <div className="upload-item">
-          <label>Video File (.mp4, .mkv, etc.)</label>
+          <label>Video File (.mp4, .mkv, .avi, .mov, etc.)</label>
           <input 
             type="file" 
-            accept="video/*" 
+            accept="video/*,.mkv" 
             onChange={handleVideoUpload}
           />
           {videoFile && <span className="file-name">✓ {videoFile.name}</span>}

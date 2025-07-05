@@ -7,13 +7,15 @@ interface VideoPlayerProps {
   subtitleUrl: string;
   beginTimestamp: string;
   endTimestamp: string;
+  videoFileName?: string;
 }
 
 const VideoPlayer: React.FC<VideoPlayerProps> = ({
   videoUrl,
   subtitleUrl,
   beginTimestamp,
-  endTimestamp
+  endTimestamp,
+  videoFileName = ''
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const playerRef = useRef<Player | null>(null);
@@ -25,6 +27,22 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     return hours * 3600 + minutes * 60 + seconds + (ms ? parseInt(ms) / 1000 : 0);
   };
 
+  // Get MIME type based on file extension
+  const getMimeType = (fileName: string): string => {
+    const extension = fileName.toLowerCase().split('.').pop();
+    const mimeTypes: { [key: string]: string } = {
+      'mp4': 'video/mp4',
+      'webm': 'video/webm',
+      'mkv': 'video/webm', // Use video/webm for better browser compatibility
+      'avi': 'video/x-msvideo',
+      'mov': 'video/quicktime',
+      'm4v': 'video/mp4',
+      'ogv': 'video/ogg'
+    };
+    
+    return mimeTypes[extension || ''] || 'video/mp4';
+  };
+
   useEffect(() => {
     if (!videoRef.current || !videoUrl) return;
 
@@ -34,7 +52,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       autoplay: true,
       preload: 'auto',
       fluid: true,
-      playbackRates: [0.5, 1, 1.5, 2]
+      playbackRates: [0.5, 1, 1.5, 2],
+      // Enhanced options for better .mkv support
+      html5: {
+        vhs: {
+          overrideNative: true
+        }
+      }
     });
 
     playerRef.current = player;
@@ -68,9 +92,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         playerRef.current = null;
       }
     };
-  }, [videoUrl, beginTimestamp, endTimestamp]);
+  }, [videoUrl, beginTimestamp, endTimestamp, videoFileName]);
 
-  // Subtitle tracks are attached directly via the <track> element below.
+  const mimeType = getMimeType(videoFileName);
 
   return (
     <div className="video-player-wrapper">
@@ -79,7 +103,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         className="video-js vjs-default-skin vjs-big-play-centered"
         playsInline
       >
-        <source src={videoUrl} type="video/mp4" />
+        <source src={videoUrl} type={mimeType} />
         {subtitleUrl && (
           <track
             kind="subtitles"

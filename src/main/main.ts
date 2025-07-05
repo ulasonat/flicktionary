@@ -84,9 +84,11 @@ ipcMain.handle('save-results', async (_event, results, videoFileName) => {
   return { success: true, path: filePath };
 });
 
-ipcMain.handle('get-file-path', async (event, fileData) => {
-  // Save temporary file and return path for video player
-  const tempPath = path.join(app.getPath('temp'), `video-${Date.now()}.mp4`);
+ipcMain.handle('get-file-path', async (event, fileData, originalFileName = 'video.mp4') => {
+  // Preserve original file extension
+  const extension = path.extname(originalFileName) || '.mp4';
+  const baseName = path.basename(originalFileName, extension);
+  const tempPath = path.join(app.getPath('temp'), `${baseName}-${Date.now()}${extension}`);
   fs.writeFileSync(tempPath, Buffer.from(fileData));
   return tempPath;
 });
