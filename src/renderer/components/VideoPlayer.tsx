@@ -40,8 +40,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     playerRef.current = player;
 
     // Set up video segment
-    const startTime = Math.max(0, timestampToSeconds(beginTimestamp) - 1);
-    const endTime = timestampToSeconds(endTimestamp) + 1;
+    const startTime = Math.max(0, timestampToSeconds(beginTimestamp) - 2);
+    const endTime = timestampToSeconds(endTimestamp) + 2;
 
     player.ready(() => {
       player.currentTime(startTime);
