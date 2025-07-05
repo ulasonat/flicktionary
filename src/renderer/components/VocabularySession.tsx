@@ -119,6 +119,7 @@ const VocabularySession: React.FC<VocabularySessionProps> = ({
           <VideoPlayer
             videoUrl={videoUrl}
             subtitleUrl={subtitleUrl}
+            videoType={sessionData.videoFile.type}
             beginTimestamp={currentWord.beginTimestamp}
             endTimestamp={currentWord.endTimestamp}
             key={currentWord.term} // Force remount on word change
