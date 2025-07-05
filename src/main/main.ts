@@ -146,6 +146,17 @@ ipcMain.handle('open-external', async (_event, url) => {
 });
 
 ipcMain.handle('convert-to-mp3', async (event, videoPath) => {
+  if (!videoPath || typeof videoPath !== 'string') {
+    return { success: false, error: 'Invalid video path' };
+  }
+
+  if (videoPath.startsWith('file://')) {
+    videoPath = videoPath.replace('file://', '');
+  }
+
+  if (!fs.existsSync(videoPath)) {
+    return { success: false, error: 'Video file not found' };
+  }
   const rootDir = app.getAppPath();
   const audioDir = path.join(rootDir, 'audio');
   if (!fs.existsSync(audioDir)) {

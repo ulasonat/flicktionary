@@ -64,6 +64,9 @@ const VocabularySession: React.FC<VocabularySessionProps> = ({
         const url = 'file://' + result.path;
         audioRef.current = new Audio(url);
         setAudioReady(true);
+      } else if (result.error) {
+        console.error('Audio conversion failed', result.error);
+        alert('Audio conversion failed: ' + result.error);
       }
     } catch (err) {
       console.error('Audio conversion failed', err);
