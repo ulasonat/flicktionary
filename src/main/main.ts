@@ -10,6 +10,8 @@ let mainWindow: BrowserWindow | null = null;
 const ffmpeg = require('fluent-ffmpeg');
 const ffmpegPath = require('ffmpeg-static');
 ffmpeg.setFfmpegPath(ffmpegPath);
+const ffprobePath = require('ffprobe-static').path;
+ffmpeg.setFfprobePath(ffprobePath);
 
 if (process.platform === 'darwin') {
   app.setName('Flicktionary');
