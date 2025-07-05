@@ -4,14 +4,16 @@ import Player from 'video.js/dist/types/player';
 
 interface VideoPlayerProps {
   videoUrl: string;
+  subtitleUrl: string;
   beginTimestamp: string;
   endTimestamp: string;
 }
 
-const VideoPlayer: React.FC<VideoPlayerProps> = ({ 
-  videoUrl, 
-  beginTimestamp, 
-  endTimestamp 
+const VideoPlayer: React.FC<VideoPlayerProps> = ({
+  videoUrl,
+  subtitleUrl,
+  beginTimestamp,
+  endTimestamp
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const playerRef = useRef<Player | null>(null);
@@ -61,6 +63,24 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       }
     };
   }, [videoUrl, beginTimestamp, endTimestamp]);
+
+  useEffect(() => {
+    const player = playerRef.current;
+    if (player && subtitleUrl) {
+      const track = player.addRemoteTextTrack(
+        {
+          kind: 'subtitles',
+          src: subtitleUrl,
+          label: 'English',
+          default: true
+        },
+        false
+      );
+      return () => {
+        player.removeRemoteTextTrack(track);
+      };
+    }
+  }, [subtitleUrl]);
 
   return (
     <div className="video-player-wrapper">
