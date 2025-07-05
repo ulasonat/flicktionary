@@ -52,6 +52,15 @@ npm start            # launches the compiled app
 npm run dist         # uses electron-builder
 ```
 
+### Run everything with Make
+
+Instead of manually running the install, build and start commands,
+you can also use the provided Makefile:
+
+```bash
+make run            # runs npm install, npm run build and npm start
+```
+
 The macOS bundle will appear under **dist/**.
 
 ---
