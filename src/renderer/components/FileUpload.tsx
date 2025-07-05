@@ -34,37 +34,14 @@ const FileUpload: React.FC<FileUploadProps> = ({
   const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setVideoFile(file);
+
       const ext = file.name.split('.').pop()?.toLowerCase() || 'mp4';
-      // Save file to a temp path
       const arrayBuffer = await file.arrayBuffer();
-      let tempPath = await window.electronAPI.getFilePath(arrayBuffer, ext);
+      const tempPath = await window.electronAPI.getFilePath(arrayBuffer, ext);
       videoFileRef.current = tempPath;
 
-      let finalFile = file;
-      if (ext === 'mkv') {
-        showMessage('Converting MKV to MP4...', 'info');
-        const baseName = file.name.replace(/\.mkv$/i, '');
-        const result = await window.electronAPI.convertVideo(tempPath, baseName);
-        if (result.success && result.outputPath) {
-          const dataRes = await window.electronAPI.readBinaryFile(result.outputPath);
-          if (dataRes.success && dataRes.data) {
-            const blob = new Blob([new Uint8Array(dataRes.data as ArrayBuffer)], { type: 'video/mp4' });
-            finalFile = new File([blob], `${baseName}.mp4`, { type: 'video/mp4' });
-            tempPath = result.outputPath;
-            showMessage('Conversion complete!', 'success');
-          } else {
-            showMessage('Failed to load converted file', 'error');
-            return;
-          }
-        } else {
-          showMessage('Video conversion failed', 'error');
-          return;
-        }
-      }
-
-      setVideoFile(finalFile);
-      videoFileRef.current = tempPath;
-      updateSessionData(finalFile, subtitleFile, vocabularyWords);
+      updateSessionData(file, subtitleFile, vocabularyWords);
     }
   };
 
@@ -118,6 +95,42 @@ const FileUpload: React.FC<FileUploadProps> = ({
     } catch (error) {
       showMessage('Invalid JSON in clipboard', 'error');
     }
+  };
+
+  const handleStartClick = async () => {
+    if (!videoFile) {
+      return;
+    }
+
+    let finalFile = videoFile;
+    let pathOnDisk = videoFileRef.current;
+    const ext = videoFile.name.split('.').pop()?.toLowerCase() || 'mp4';
+
+    if (ext === 'mkv') {
+      showMessage('Converting MKV to MP4...', 'info');
+      const baseName = videoFile.name.replace(/\.mkv$/i, '');
+      const result = await window.electronAPI.convertVideo(pathOnDisk, baseName);
+      if (result.success && result.outputPath) {
+        const dataRes = await window.electronAPI.readBinaryFile(result.outputPath);
+        if (dataRes.success && dataRes.data) {
+          const blob = new Blob([new Uint8Array(dataRes.data as ArrayBuffer)], { type: 'video/mp4' });
+          finalFile = new File([blob], `${baseName}.mp4`, { type: 'video/mp4' });
+          pathOnDisk = result.outputPath;
+          setVideoFile(finalFile);
+          videoFileRef.current = pathOnDisk;
+          updateSessionData(finalFile, subtitleFile, vocabularyWords);
+          showMessage('Conversion complete!', 'success');
+        } else {
+          showMessage('Failed to load converted file', 'error');
+          return;
+        }
+      } else {
+        showMessage('Video conversion failed', 'error');
+        return;
+      }
+    }
+
+    onStartSession();
   };
 
   const handleGoToGemini = async () => {
@@ -310,9 +323,9 @@ const FileUpload: React.FC<FileUploadProps> = ({
         )}
       </div>
 
-      <button 
+      <button
         className={`start-button ${isReady ? 'ready' : 'disabled'}`}
-        onClick={onStartSession}
+        onClick={handleStartClick}
         disabled={!isReady}
       >
         Start Session
