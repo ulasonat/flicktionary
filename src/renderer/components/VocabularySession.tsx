@@ -14,6 +14,7 @@ const VocabularySession: React.FC<VocabularySessionProps> = ({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [results, setResults] = useState<WordResult[]>([]);
   const [videoUrl, setVideoUrl] = useState<string>('');
+  const [subtitleUrl, setSubtitleUrl] = useState<string>('');
 
   useEffect(() => {
     // Create object URL for video file
@@ -24,6 +25,33 @@ const VocabularySession: React.FC<VocabularySessionProps> = ({
       URL.revokeObjectURL(url);
     };
   }, [sessionData.videoFile]);
+
+  useEffect(() => {
+    let url: string;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const srtText = reader.result as string;
+      const vttText = srtToVtt(srtText);
+      const blob = new Blob([vttText], { type: 'text/vtt' });
+      url = URL.createObjectURL(blob);
+      setSubtitleUrl(url);
+    };
+    reader.readAsText(sessionData.subtitleFile);
+    return () => {
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [sessionData.subtitleFile]);
+
+  const srtToVtt = (srt: string): string => {
+    return (
+      'WEBVTT\n\n' +
+      srt
+        .replace(/\r+/g, '')
+        .split('\n')
+        .map(line => line.replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2'))
+        .join('\n')
+    );
+  };
 
   const currentWord = sessionData.vocabularyWords[currentIndex];
   
@@ -86,6 +114,7 @@ const VocabularySession: React.FC<VocabularySessionProps> = ({
         <div className="video-section">
           <VideoPlayer
             videoUrl={videoUrl}
+            subtitleUrl={subtitleUrl}
             beginTimestamp={currentWord.beginTimestamp}
             endTimestamp={currentWord.endTimestamp}
             key={currentWord.term} // Force remount on word change
