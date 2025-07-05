@@ -70,17 +70,18 @@ app.on('activate', () => {
 });
 
 // IPC handlers
-ipcMain.handle('save-results', async (event, results) => {
-  const { filePath } = await dialog.showSaveDialog({
-    filters: [{ name: 'JSON', extensions: ['json'] }],
-    defaultPath: 'vocabulary-results.json'
-  });
-
-  if (filePath) {
-    fs.writeFileSync(filePath, JSON.stringify(results, null, 2));
-    return { success: true, path: filePath };
+ipcMain.handle('save-results', async (_event, results, videoFileName) => {
+  const rootDir = app.getAppPath();
+  const processedDir = path.join(rootDir, 'processed');
+  if (!fs.existsSync(processedDir)) {
+    fs.mkdirSync(processedDir, { recursive: true });
   }
-  return { success: false };
+
+  const baseName = path.parse(videoFileName).name;
+  const filePath = path.join(processedDir, `words_for_${baseName}.json`);
+
+  fs.writeFileSync(filePath, JSON.stringify(results, null, 2));
+  return { success: true, path: filePath };
 });
 
 ipcMain.handle('get-file-path', async (event, fileData) => {

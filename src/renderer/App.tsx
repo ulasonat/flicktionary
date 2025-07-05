@@ -26,7 +26,11 @@ const App: React.FC = () => {
     // Save results
     if (window.electronAPI) {
       try {
-        const result = await window.electronAPI.saveResults(unknownWords);
+        const videoName = sessionData?.videoFile.name || 'video';
+        const result = await window.electronAPI.saveResults(
+          unknownWords,
+          videoName
+        );
         if (result.success) {
           alert(`Results saved to: ${result.path}`);
         }
