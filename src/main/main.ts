@@ -11,7 +11,17 @@ const ffmpeg = require('fluent-ffmpeg');
 const ffmpegPath = require('ffmpeg-static');
 ffmpeg.setFfmpegPath(ffmpegPath);
 
+if (process.platform === 'darwin') {
+  app.setName('Flicktionary');
+}
+
 function createWindow() {
+  const iconPath = path.join(__dirname, 'png', 'flicktionary_logo.png');
+
+  if (process.platform === 'darwin') {
+    app.dock.setIcon(iconPath);
+  }
+
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -26,7 +36,8 @@ function createWindow() {
     },
     titleBarStyle: 'hiddenInset',
     backgroundColor: '#1a1a1a',
-    title: 'Flicktionary'
+    title: 'Flicktionary',
+    icon: iconPath
   });
 
   mainWindow.once('ready-to-show', () => {
