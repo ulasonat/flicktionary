@@ -16,6 +16,7 @@ function createWindow() {
     width: 1400,
     height: 900,
     fullscreen: true, // Launch in fullscreen
+    fullscreenable: true,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -25,6 +26,10 @@ function createWindow() {
     titleBarStyle: 'hiddenInset',
     backgroundColor: '#1a1a1a',
     title: 'Flicktionary'
+  });
+
+  mainWindow.once('ready-to-show', () => {
+    mainWindow!.setFullScreen(true);
   });
 
   if (process.env.NODE_ENV === 'development') {
