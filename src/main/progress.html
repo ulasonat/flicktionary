@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Converting Audio</title>
+  <style>
+    body { background:#1a1a1a; color:#fff; font-family:sans-serif; padding:20px; }
+    .bar { width:100%; height:20px; background:#444; margin-top:10px; }
+    .fill { height:100%; width:0%; background:#4caf50; }
+  </style>
+</head>
+<body>
+  <div>Converting video audio...</div>
+  <div class="bar"><div class="fill" id="fill"></div></div>
+  <script>
+    const { ipcRenderer } = require('electron');
+    const fill = document.getElementById('fill');
+    ipcRenderer.on('conversion-progress', (_e, percent) => {
+      if (fill) fill.style.width = percent + '%';
+    });
+    ipcRenderer.on('conversion-complete', () => {
+      if (fill) fill.style.width = '100%';
+    });
+  </script>
+</body>
+</html>

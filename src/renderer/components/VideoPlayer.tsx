@@ -8,6 +8,7 @@ interface VideoPlayerProps {
   beginTimestamp: string;
   endTimestamp: string;
   videoFileName?: string;
+  audioSrc?: string;
 }
 
 const VideoPlayer: React.FC<VideoPlayerProps> = ({
@@ -15,10 +16,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   subtitleUrl,
   beginTimestamp,
   endTimestamp,
-  videoFileName = ''
+  videoFileName = '',
+  audioSrc
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const playerRef = useRef<Player | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Convert timestamp to seconds
   const timestampToSeconds = (timestamp: string): number => {
@@ -63,6 +66,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
     playerRef.current = player;
 
+    if (audioSrc) {
+      audioRef.current = new Audio(audioSrc.startsWith('file://') ? audioSrc : `file://${audioSrc}`);
+      audioRef.current.preload = 'auto';
+    }
+
     // Set up video segment
     const startTime = Math.max(0, timestampToSeconds(beginTimestamp) - 2);
     const endTime = timestampToSeconds(endTimestamp) + 2;
@@ -71,28 +79,52 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       player.currentTime(startTime);
       player.play();
 
+      if (audioRef.current) {
+        audioRef.current.currentTime = startTime;
+        audioRef.current.play();
+      }
+
       const tracks = player.textTracks();
       for (let i = 0; i < tracks.length; i++) {
         tracks[i].mode = 'showing';
       }
-      
+
       player.on('timeupdate', () => {
         const currentTime = player.currentTime();
+        if (audioRef.current && Math.abs(audioRef.current.currentTime - currentTime) > 0.3) {
+          audioRef.current.currentTime = currentTime;
+        }
         if (currentTime && currentTime >= endTime) {
           player.pause();
           player.currentTime(startTime);
+          if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.currentTime = startTime;
+          }
+        }
+      });
+
+      player.on('play', () => audioRef.current?.play());
+      player.on('pause', () => audioRef.current?.pause());
+      player.on('seeking', () => {
+        if (audioRef.current) {
+          audioRef.current.currentTime = player.currentTime();
         }
       });
     });
 
-    return () => {
-      const currentPlayer = playerRef.current;
-      if (currentPlayer && !currentPlayer.isDisposed()) {
-        currentPlayer.dispose();
-        playerRef.current = null;
-      }
-    };
-  }, [videoUrl, beginTimestamp, endTimestamp, videoFileName]);
+  return () => {
+    const currentPlayer = playerRef.current;
+    if (currentPlayer && !currentPlayer.isDisposed()) {
+      currentPlayer.dispose();
+      playerRef.current = null;
+    }
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+  };
+  }, [videoUrl, beginTimestamp, endTimestamp, videoFileName, audioSrc]);
 
   const mimeType = getMimeType(videoFileName);
 

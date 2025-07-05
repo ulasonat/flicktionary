@@ -12,6 +12,8 @@ export interface SessionData {
   videoFile: File;
   subtitleFile: File;
   vocabularyWords: VocabularyWord[];
+  /** Absolute path to the temporary video file on disk */
+  videoPath: string;
 }
 
 export interface WordResult {
