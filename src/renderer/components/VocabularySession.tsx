@@ -16,6 +16,21 @@ const VocabularySession: React.FC<VocabularySessionProps> = ({
   const [videoUrl, setVideoUrl] = useState<string>('');
   const [subtitleUrl, setSubtitleUrl] = useState<string>('');
 
+  const getMimeType = (file: File): string | undefined => {
+    if (file.type) return file.type;
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    switch (ext) {
+      case 'mp4':
+        return 'video/mp4';
+      case 'mkv':
+        return 'video/x-matroska';
+      case 'webm':
+        return 'video/webm';
+      default:
+        return undefined;
+    }
+  };
+
   useEffect(() => {
     // Create object URL for video file
     const url = URL.createObjectURL(sessionData.videoFile);
@@ -118,6 +133,7 @@ const VocabularySession: React.FC<VocabularySessionProps> = ({
         <div className="video-section">
           <VideoPlayer
             videoUrl={videoUrl}
+            videoType={getMimeType(sessionData.videoFile)}
             subtitleUrl={subtitleUrl}
             beginTimestamp={currentWord.beginTimestamp}
             endTimestamp={currentWord.endTimestamp}
