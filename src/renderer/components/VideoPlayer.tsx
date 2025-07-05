@@ -65,23 +65,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     };
   }, [videoUrl, beginTimestamp, endTimestamp]);
 
-  useEffect(() => {
-    const player = playerRef.current;
-    if (player && subtitleUrl) {
-      const track = player.addRemoteTextTrack(
-        {
-          kind: 'subtitles',
-          src: subtitleUrl,
-          label: 'English',
-          default: true
-        },
-        false
-      );
-      return () => {
-        player.removeRemoteTextTrack(track);
-      };
-    }
-  }, [subtitleUrl]);
+  // Subtitle tracks are attached directly via the <track> element below.
 
   return (
     <div className="video-player-wrapper">
@@ -91,6 +75,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         playsInline
       >
         <source src={videoUrl} type="video/mp4" />
+        {subtitleUrl && (
+          <track
+            kind="subtitles"
+            src={subtitleUrl}
+            label="English"
+            default
+          />
+        )}
       </video>
     </div>
   );
