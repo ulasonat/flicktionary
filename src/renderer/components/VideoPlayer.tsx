@@ -24,7 +24,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   };
 
   useEffect(() => {
-    if (!videoRef.current) return;
+    if (!videoRef.current || !videoUrl) return;
 
     // Initialize video.js player
     const player = videojs(videoRef.current, {
