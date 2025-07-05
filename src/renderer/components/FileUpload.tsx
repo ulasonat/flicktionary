@@ -23,6 +23,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState<'info' | 'error' | 'success'>('info');
   const videoFileRef = useRef<string>('');
+  const [geminiVisited, setGeminiVisited] = useState(false);
 
   const showMessage = (msg: string, type: 'info' | 'error' | 'success' = 'info') => {
     setMessage(msg);
@@ -91,6 +92,27 @@ const FileUpload: React.FC<FileUploadProps> = ({
       showMessage('Vocabulary loaded from clipboard!', 'success');
     } catch (error) {
       showMessage('Invalid JSON in clipboard', 'error');
+    }
+  };
+
+  const handleGoToGemini = async () => {
+    if (!subtitleFile) {
+      showMessage('Please select subtitles first', 'error');
+      return;
+    }
+
+    try {
+      const promptText = await loadPrompt();
+      const fullText = `${promptText}\n\n${subtitleContent}`;
+      await navigator.clipboard.writeText(fullText);
+      if (window.electronAPI?.openExternal) {
+        await window.electronAPI.openExternal('https://gemini.google.com/app');
+      } else {
+        window.open('https://gemini.google.com/app', '_blank');
+      }
+      setGeminiVisited(true);
+    } catch (error) {
+      showMessage('Failed to open Gemini', 'error');
     }
   };
 
@@ -222,11 +244,14 @@ const FileUpload: React.FC<FileUploadProps> = ({
         <div className="upload-item">
           <label>Vocabulary JSON</label>
           <div className="vocabulary-controls">
-            <button onClick={handlePasteJSON} className="vocab-button">
-              📋 Paste from Clipboard
+            <button
+              onClick={geminiVisited ? handlePasteJSON : handleGoToGemini}
+              className="vocab-button"
+            >
+              {geminiVisited ? '📋 Paste from Clipboard' : 'Go to Gemini'}
             </button>
-            <button 
-              onClick={handleGenerateVocabulary} 
+            <button
+              onClick={handleGenerateVocabulary}
               className="vocab-button generate"
               disabled={!subtitleFile || isGenerating}
             >

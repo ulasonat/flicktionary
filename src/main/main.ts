@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import Store from 'electron-store';
@@ -106,5 +106,10 @@ ipcMain.handle('get-api-key', async () => {
 
 ipcMain.handle('save-api-key', async (event, apiKey) => {
   store.set('gemini-api-key', apiKey);
+  return { success: true };
+});
+
+ipcMain.handle('open-external', async (_event, url) => {
+  await shell.openExternal(url);
   return { success: true };
 });
