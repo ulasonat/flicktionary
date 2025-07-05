@@ -118,12 +118,14 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
   const loadPrompt = async (): Promise<string> => {
     try {
-      const response = await fetch('./prompt.txt');
-      return await response.text();
-    } catch (error) {
-      // Fallback prompt if file not found
-      return `Your task is to act as an expert linguist and cultural analyst. I will provide you with a full transcript of movie subtitles. You must perform a comprehensive analysis of this entire transcript to identify and explain all language elements that would be difficult for a proficient (C1-level) non-native English speaker, particularly one whose native language is Turkish, to understand...`;
+      const result = await window.electronAPI.readFile("prompt.txt");
+      if (result.success && result.content) {
+        return result.content;
+      }
+    } catch {
+      // Ignore and fall back to default prompt
     }
+    return `Your task is to act as an expert linguist and cultural analyst. I will provide you with a full transcript of movie subtitles. You must perform a comprehensive analysis of this entire transcript to identify and explain all language elements that would be difficult for a proficient (C1-level) non-native English speaker, particularly one whose native language is Turkish, to understand...`;
   };
 
   const handleGenerateVocabulary = async () => {

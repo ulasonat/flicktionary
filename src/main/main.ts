@@ -109,6 +109,15 @@ ipcMain.handle('save-api-key', async (event, apiKey) => {
   return { success: true };
 });
 
+ipcMain.handle('read-file', async (_event, filePath) => {
+  try {
+    const content = fs.readFileSync(path.join(app.getAppPath(), filePath), 'utf8');
+    return { success: true, content };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
 ipcMain.handle('open-external', async (_event, url) => {
   await shell.openExternal(url);
   return { success: true };
