@@ -11,6 +11,8 @@ export interface VocabularyWord {
 export interface SessionData {
   videoFile: File;
   subtitleFile: File;
+  /** Absolute path to the uploaded video on disk */
+  videoFilePath: string;
   vocabularyWords: VocabularyWord[];
 }
 

@@ -7,14 +7,16 @@ interface VocabularySessionProps {
   onComplete: (results: WordResult[]) => void;
 }
 
-const VocabularySession: React.FC<VocabularySessionProps> = ({ 
-  sessionData, 
-  onComplete 
+const VocabularySession: React.FC<VocabularySessionProps> = ({
+  sessionData,
+  onComplete
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [results, setResults] = useState<WordResult[]>([]);
   const [videoUrl, setVideoUrl] = useState<string>('');
   const [subtitleUrl, setSubtitleUrl] = useState<string>('');
+  const [audioReady, setAudioReady] = useState(false);
+  const audioRef = React.useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     // Create object URL for video file
@@ -54,6 +56,22 @@ const VocabularySession: React.FC<VocabularySessionProps> = ({
   };
 
   const currentWord = sessionData.vocabularyWords[currentIndex];
+
+  const handleGenerateAudio = async () => {
+    try {
+      const result = await window.electronAPI.convertToMp3(sessionData.videoFilePath);
+      if (result.success && result.path) {
+        const url = 'file://' + result.path;
+        audioRef.current = new Audio(url);
+        setAudioReady(true);
+      } else if (result.error) {
+        console.error('Audio conversion failed', result.error);
+        alert('Audio conversion failed: ' + result.error);
+      }
+    } catch (err) {
+      console.error('Audio conversion failed', err);
+    }
+  };
   
   const handleResponse = (known: boolean) => {
     const newResult: WordResult = {
@@ -122,6 +140,9 @@ const VocabularySession: React.FC<VocabularySessionProps> = ({
             beginTimestamp={currentWord.beginTimestamp}
             endTimestamp={currentWord.endTimestamp}
             videoFileName={sessionData.videoFile.name}
+            externalAudio={audioRef.current || undefined}
+            showAudioButton={currentIndex === 0 && !audioReady}
+            onRequestAudio={handleGenerateAudio}
             key={currentWord.term} // Force remount on word change
           />
         </div>
