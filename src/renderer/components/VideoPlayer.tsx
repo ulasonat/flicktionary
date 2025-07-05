@@ -46,6 +46,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     player.ready(() => {
       player.currentTime(startTime);
       player.play();
+
+      const tracks = player.textTracks();
+      for (let i = 0; i < tracks.length; i++) {
+        tracks[i].mode = 'showing';
+      }
       
       player.on('timeupdate', () => {
         const currentTime = player.currentTime();
@@ -79,6 +84,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           <track
             kind="subtitles"
             src={subtitleUrl}
+            srclang="en"
             label="English"
             default
           />
