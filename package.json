@@ -8,8 +8,9 @@
     "dev": "webpack serve --mode development",
     "build:renderer": "webpack --mode production",
     "build:main": "tsc -p tsconfig.electron.json",
-    "build": "npm run build:renderer && npm run build:main && npm run copy:preload",
+    "build": "npm run build:renderer && npm run build:main && npm run copy:preload && npm run copy:assets",
     "copy:preload": "cp src/main/preload.js dist/preload.js",
+    "copy:assets": "cp -r png dist/png",
     "electron": "electron .",
     "dist": "npm run build && electron-builder"
   },
