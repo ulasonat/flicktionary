@@ -161,7 +161,16 @@ ipcMain.handle('convert-video', async (_event, inputPath, outputName) => {
     console.log('FFmpeg input:', inputPath);
     console.log('FFmpeg output:', outputPath);
     ffmpeg(inputPath)
-      .outputOptions('-c:v libx264', '-preset veryfast', '-crf 28', '-c:a aac')
+      .outputOptions([
+        '-c:v',
+        'libx264',
+        '-preset',
+        'veryfast',
+        '-crf',
+        '28',
+        '-c:a',
+        'aac'
+      ])
       .on('start', (cmd: string) => {
         console.log('FFmpeg command:', cmd);
       })
