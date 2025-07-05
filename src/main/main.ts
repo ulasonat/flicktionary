@@ -84,11 +84,30 @@ ipcMain.handle('save-results', async (_event, results, videoFileName) => {
   return { success: true, path: filePath };
 });
 
-ipcMain.handle('get-file-path', async (event, fileData) => {
-  // Save temporary file and return path for video player
-  const tempPath = path.join(app.getPath('temp'), `video-${Date.now()}.mp4`);
+ipcMain.handle('get-file-path', async (event, fileData, fileName) => {
+  // Save temporary file with the same extension as the uploaded file
+  let ext = '.mp4';
+  if (typeof fileName === 'string') {
+    const parsed = path.extname(fileName);
+    if (parsed) {
+      ext = parsed;
+    }
+  }
+
+  const tempPath = path.join(app.getPath('temp'), `video-${Date.now()}${ext}`);
   fs.writeFileSync(tempPath, Buffer.from(fileData));
   return tempPath;
+});
+
+ipcMain.handle('convert-video', async (_event, inputPath) => {
+  const outputPath = path.join(app.getPath('temp'), `playback-${Date.now()}.mp4`);
+  return new Promise((resolve, reject) => {
+    ffmpeg(inputPath)
+      .outputOptions('-c:v copy', '-c:a copy')
+      .save(outputPath)
+      .on('end', () => resolve(outputPath))
+      .on('error', (err: Error) => reject(err));
+  });
 });
 
 // Extract subtitles from video

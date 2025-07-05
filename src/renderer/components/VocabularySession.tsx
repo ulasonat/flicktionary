@@ -17,14 +17,8 @@ const VocabularySession: React.FC<VocabularySessionProps> = ({
   const [subtitleUrl, setSubtitleUrl] = useState<string>('');
 
   useEffect(() => {
-    // Create object URL for video file
-    const url = URL.createObjectURL(sessionData.videoFile);
-    setVideoUrl(url);
-
-    return () => {
-      URL.revokeObjectURL(url);
-    };
-  }, [sessionData.videoFile]);
+    setVideoUrl(sessionData.videoPath);
+  }, [sessionData.videoPath]);
 
   useEffect(() => {
     let url: string;
@@ -118,6 +112,7 @@ const VocabularySession: React.FC<VocabularySessionProps> = ({
         <div className="video-section">
           <VideoPlayer
             videoUrl={videoUrl}
+            videoType="video/mp4"
             subtitleUrl={subtitleUrl}
             beginTimestamp={currentWord.beginTimestamp}
             endTimestamp={currentWord.endTimestamp}

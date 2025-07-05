@@ -23,6 +23,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState<'info' | 'error' | 'success'>('info');
   const videoFileRef = useRef<string>('');
+  const playbackPathRef = useRef<string>('');
   const [geminiVisited, setGeminiVisited] = useState(false);
 
   const showMessage = (msg: string, type: 'info' | 'error' | 'success' = 'info') => {
@@ -35,10 +36,19 @@ const FileUpload: React.FC<FileUploadProps> = ({
     const file = e.target.files?.[0];
     if (file) {
       setVideoFile(file);
-      // Create temporary file path for subtitle extraction
       const arrayBuffer = await file.arrayBuffer();
-      const filePath = await window.electronAPI.getFilePath(arrayBuffer);
-      videoFileRef.current = filePath;
+      const originalPath = await window.electronAPI.getFilePath(arrayBuffer, file.name);
+      videoFileRef.current = originalPath;
+
+      let playbackPath = originalPath;
+      if (file.type !== 'video/mp4') {
+        try {
+          playbackPath = await window.electronAPI.convertVideo(originalPath);
+        } catch (err) {
+          console.error('Video conversion failed:', err);
+        }
+      }
+      playbackPathRef.current = `file://${playbackPath}`;
       updateSessionData(file, subtitleFile, vocabularyWords);
     }
   };
@@ -184,13 +194,14 @@ const FileUpload: React.FC<FileUploadProps> = ({
   };
 
   const updateSessionData = (
-    video: File | null, 
-    subtitle: File | null, 
+    video: File | null,
+    subtitle: File | null,
     words: VocabularyWord[]
   ) => {
-    if (video && subtitle && words.length > 0) {
+    if (video && subtitle && words.length > 0 && playbackPathRef.current) {
       onFilesUploaded({
         videoFile: video,
+        videoPath: playbackPathRef.current,
         subtitleFile: subtitle,
         vocabularyWords: words
       });
@@ -216,9 +227,9 @@ const FileUpload: React.FC<FileUploadProps> = ({
       <div className="upload-section">
         <div className="upload-item">
           <label>Video File (.mp4, .mkv, etc.)</label>
-          <input 
-            type="file" 
-            accept="video/*" 
+          <input
+            type="file"
+            accept="video/*,.mkv,video/x-matroska"
             onChange={handleVideoUpload}
           />
           {videoFile && <span className="file-name">✓ {videoFile.name}</span>}
