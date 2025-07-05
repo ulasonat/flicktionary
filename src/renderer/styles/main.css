@@ -322,6 +322,7 @@ body {
 
 .word-details {
   flex: 1;
+  padding-top: 20px; /* space below progress bar */
 }
 
 .term {
@@ -408,7 +409,7 @@ body {
 .navigation-buttons {
   display: flex;
   gap: 15px;
-  margin-top: 20px;
+  margin-top: 50px; /* more space from response buttons */
 }
 
 .nav-btn {
