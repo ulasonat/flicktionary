@@ -25,6 +25,22 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     return hours * 3600 + minutes * 60 + seconds + (ms ? parseInt(ms) / 1000 : 0);
   };
 
+  const getMimeType = (url: string): string => {
+    const ext = url.split('.').pop()?.toLowerCase();
+    switch (ext) {
+      case 'mp4':
+        return 'video/mp4';
+      case 'mkv':
+        return 'video/x-matroska';
+      case 'webm':
+        return 'video/webm';
+      case 'ogg':
+        return 'video/ogg';
+      default:
+        return 'video/*';
+    }
+  };
+
   useEffect(() => {
     if (!videoRef.current || !videoUrl) return;
 
@@ -74,7 +90,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         className="video-js vjs-default-skin vjs-big-play-centered"
         playsInline
       >
-        <source src={videoUrl} type="video/mp4" />
+        <source src={videoUrl} type={getMimeType(videoUrl)} />
         {subtitleUrl && (
           <track
             kind="subtitles"

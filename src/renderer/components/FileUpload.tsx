@@ -37,7 +37,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
       setVideoFile(file);
       // Create temporary file path for subtitle extraction
       const arrayBuffer = await file.arrayBuffer();
-      const filePath = await window.electronAPI.getFilePath(arrayBuffer);
+      const filePath = await window.electronAPI.getFilePath(arrayBuffer, file.name);
       videoFileRef.current = filePath;
       updateSessionData(file, subtitleFile, vocabularyWords);
     }
