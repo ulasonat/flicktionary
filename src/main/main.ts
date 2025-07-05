@@ -5,6 +5,7 @@ import Store from 'electron-store';
 
 const store = new Store();
 let mainWindow: BrowserWindow | null = null;
+let progressWindow: BrowserWindow | null = null;
 
 // Enable ffmpeg for subtitle extraction
 const ffmpeg = require('fluent-ffmpeg');
@@ -52,6 +53,29 @@ function createWindow() {
 
   mainWindow.on('closed', () => {
     mainWindow = null;
+  });
+}
+
+function createProgressWindow() {
+  if (progressWindow) {
+    return;
+  }
+  progressWindow = new BrowserWindow({
+    width: 400,
+    height: 120,
+    resizable: false,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js')
+    },
+    title: 'Converting...'
+  });
+
+  progressWindow.loadFile(path.join(__dirname, 'progress.html'));
+
+  progressWindow.on('closed', () => {
+    progressWindow = null;
   });
 }
 
@@ -140,4 +164,41 @@ ipcMain.handle('read-file', async (_event, filePath) => {
 ipcMain.handle('open-external', async (_event, url) => {
   await shell.openExternal(url);
   return { success: true };
+});
+
+ipcMain.handle('open-progress-window', async () => {
+  createProgressWindow();
+});
+
+ipcMain.handle('convert-to-mp3', async (event, videoPath) => {
+  if (!progressWindow) {
+    createProgressWindow();
+  }
+
+  return new Promise((resolve) => {
+    const rootDir = app.getAppPath();
+    const audioDir = path.join(rootDir, 'audio');
+    if (!fs.existsSync(audioDir)) {
+      fs.mkdirSync(audioDir, { recursive: true });
+    }
+    const baseName = path.parse(videoPath).name;
+    const outputPath = path.join(audioDir, `${baseName}.mp3`);
+
+    ffmpeg(videoPath)
+      .output(outputPath)
+      .on('progress', (progress: any) => {
+        const percent = progress.percent ? Math.round(progress.percent) : 0;
+        progressWindow?.webContents.send('convert-progress', percent);
+      })
+      .on('end', () => {
+        progressWindow?.webContents.send('convert-progress', 100);
+        resolve({ success: true, outputPath });
+        progressWindow?.close();
+      })
+      .on('error', (err: Error) => {
+        resolve({ success: false, error: err.message });
+        progressWindow?.close();
+      })
+      .run();
+  });
 });

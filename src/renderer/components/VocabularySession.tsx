@@ -15,6 +15,7 @@ const VocabularySession: React.FC<VocabularySessionProps> = ({
   const [results, setResults] = useState<WordResult[]>([]);
   const [videoUrl, setVideoUrl] = useState<string>('');
   const [subtitleUrl, setSubtitleUrl] = useState<string>('');
+  const [audioUrl, setAudioUrl] = useState<string>('');
 
   useEffect(() => {
     // Create object URL for video file
@@ -85,6 +86,18 @@ const VocabularySession: React.FC<VocabularySessionProps> = ({
     }
   };
 
+  const handleConvertAudio = async () => {
+    try {
+      await window.electronAPI.openProgressWindow();
+      const result = await window.electronAPI.convertToMp3(sessionData.videoFilePath);
+      if (result.success && result.outputPath) {
+        setAudioUrl(`file://${result.outputPath}`);
+      }
+    } catch (err) {
+      console.error('Audio conversion failed', err);
+    }
+  };
+
   const handleFinish = () => {
     if (results.length === sessionData.vocabularyWords.length) {
       onComplete(results);
@@ -116,12 +129,16 @@ const VocabularySession: React.FC<VocabularySessionProps> = ({
 
       <div className="session-content">
         <div className="video-section">
+          {currentIndex === 0 && !audioUrl && (
+            <button className="audio-btn" onClick={handleConvertAudio}>🔊</button>
+          )}
           <VideoPlayer
             videoUrl={videoUrl}
             subtitleUrl={subtitleUrl}
             beginTimestamp={currentWord.beginTimestamp}
             endTimestamp={currentWord.endTimestamp}
             videoFileName={sessionData.videoFile.name}
+            audioUrl={audioUrl}
             key={currentWord.term} // Force remount on word change
           />
         </div>

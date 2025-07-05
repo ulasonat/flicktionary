@@ -184,13 +184,14 @@ const FileUpload: React.FC<FileUploadProps> = ({
   };
 
   const updateSessionData = (
-    video: File | null, 
-    subtitle: File | null, 
+    video: File | null,
+    subtitle: File | null,
     words: VocabularyWord[]
   ) => {
     if (video && subtitle && words.length > 0) {
       onFilesUploaded({
         videoFile: video,
+        videoFilePath: videoFileRef.current,
         subtitleFile: subtitle,
         vocabularyWords: words
       });

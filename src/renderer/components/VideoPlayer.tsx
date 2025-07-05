@@ -8,6 +8,7 @@ interface VideoPlayerProps {
   beginTimestamp: string;
   endTimestamp: string;
   videoFileName?: string;
+  audioUrl?: string;
 }
 
 const VideoPlayer: React.FC<VideoPlayerProps> = ({
@@ -15,10 +16,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   subtitleUrl,
   beginTimestamp,
   endTimestamp,
-  videoFileName = ''
+  videoFileName = '',
+  audioUrl
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const playerRef = useRef<Player | null>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   // Convert timestamp to seconds
   const timestampToSeconds = (timestamp: string): number => {
@@ -94,6 +97,36 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     };
   }, [videoUrl, beginTimestamp, endTimestamp, videoFileName]);
 
+  useEffect(() => {
+    const player = playerRef.current;
+    const audio = audioRef.current;
+    if (!player || !audio) return;
+    if (!audioUrl) return;
+
+    player.muted(true);
+    const syncAudio = () => {
+      audio.currentTime = player.currentTime();
+    };
+    player.on('play', () => {
+      syncAudio();
+      audio.play();
+    });
+    player.on('pause', () => audio.pause());
+    player.on('seeked', syncAudio);
+    player.on('timeupdate', () => {
+      if (Math.abs(audio.currentTime - player.currentTime()) > 0.3) {
+        syncAudio();
+      }
+    });
+
+    return () => {
+      player.off('play');
+      player.off('pause');
+      player.off('seeked');
+      player.off('timeupdate');
+    };
+  }, [audioUrl]);
+
   const mimeType = getMimeType(videoFileName);
 
   return (
@@ -114,6 +147,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           />
         )}
       </video>
+      {audioUrl && <audio ref={audioRef} src={audioUrl} />}
     </div>
   );
 };

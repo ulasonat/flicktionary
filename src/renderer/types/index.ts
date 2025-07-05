@@ -10,6 +10,7 @@ export interface VocabularyWord {
 
 export interface SessionData {
   videoFile: File;
+  videoFilePath: string;
   subtitleFile: File;
   vocabularyWords: VocabularyWord[];
 }

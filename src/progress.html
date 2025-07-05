@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Converting...</title>
+  <style>
+    body { background:#1a1a1a; color:#fff; font-family:sans-serif; display:flex; align-items:center; justify-content:center; height:100vh; }
+    #container { width:80%; }
+    progress { width:100%; height:20px; }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <p>Converting video...</p>
+    <progress id="bar" value="0" max="100"></progress>
+  </div>
+  <script>
+    window.electronAPI.onConvertProgress((p)=>{
+      document.getElementById('bar').value = p;
+    });
+  </script>
+</body>
+</html>
