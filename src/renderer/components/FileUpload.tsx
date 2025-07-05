@@ -34,12 +34,25 @@ const FileUpload: React.FC<FileUploadProps> = ({
   const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setVideoFile(file);
       // Create temporary file path for subtitle extraction
       const arrayBuffer = await file.arrayBuffer();
-      const filePath = await window.electronAPI.getFilePath(arrayBuffer);
+      const filePath = await window.electronAPI.getFilePath(arrayBuffer, file.name);
       videoFileRef.current = filePath;
-      updateSessionData(file, subtitleFile, vocabularyWords);
+
+      let playableFile: File = file;
+      if (file.type !== 'video/mp4') {
+        try {
+          const result = await window.electronAPI.convertVideo(arrayBuffer, file.name);
+          playableFile = new File([result.buffer], file.name, {
+            type: result.mimeType
+          });
+        } catch (err) {
+          console.error('Video conversion failed:', err);
+        }
+      }
+
+      setVideoFile(playableFile);
+      updateSessionData(playableFile, subtitleFile, vocabularyWords);
     }
   };
 
@@ -216,9 +229,9 @@ const FileUpload: React.FC<FileUploadProps> = ({
       <div className="upload-section">
         <div className="upload-item">
           <label>Video File (.mp4, .mkv, etc.)</label>
-          <input 
-            type="file" 
-            accept="video/*" 
+          <input
+            type="file"
+            accept="video/*,.mkv,video/x-matroska"
             onChange={handleVideoUpload}
           />
           {videoFile && <span className="file-name">✓ {videoFile.name}</span>}

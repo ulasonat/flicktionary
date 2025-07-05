@@ -84,11 +84,45 @@ ipcMain.handle('save-results', async (_event, results, videoFileName) => {
   return { success: true, path: filePath };
 });
 
-ipcMain.handle('get-file-path', async (event, fileData) => {
-  // Save temporary file and return path for video player
-  const tempPath = path.join(app.getPath('temp'), `video-${Date.now()}.mp4`);
+ipcMain.handle('get-file-path', async (event, fileData, fileName) => {
+  // Save temporary file with the same extension as the uploaded file
+  let ext = '.mp4';
+  if (typeof fileName === 'string') {
+    const parsed = path.extname(fileName);
+    if (parsed) {
+      ext = parsed;
+    }
+  }
+
+  const tempPath = path.join(app.getPath('temp'), `video-${Date.now()}${ext}`);
   fs.writeFileSync(tempPath, Buffer.from(fileData));
   return tempPath;
+});
+
+ipcMain.handle('convert-video', async (_event, fileData, fileName) => {
+  const ext = path.extname(fileName || '').toLowerCase();
+  if (ext === '.mp4') {
+    // No conversion needed, return original buffer
+    return { buffer: Buffer.from(fileData), mimeType: 'video/mp4' };
+  }
+
+  const inputPath = path.join(app.getPath('temp'), `input-${Date.now()}${ext}`);
+  const outputPath = path.join(app.getPath('temp'), `output-${Date.now()}.mp4`);
+  fs.writeFileSync(inputPath, Buffer.from(fileData));
+
+  await new Promise<void>((resolve, reject) => {
+    ffmpeg(inputPath)
+      .outputOptions(['-c:v copy', '-c:a aac'])
+      .on('end', resolve)
+      .on('error', reject)
+      .save(outputPath);
+  });
+
+  const converted = fs.readFileSync(outputPath);
+  fs.unlinkSync(inputPath);
+  fs.unlinkSync(outputPath);
+
+  return { buffer: converted, mimeType: 'video/mp4' };
 });
 
 // Extract subtitles from video
