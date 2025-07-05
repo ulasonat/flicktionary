@@ -146,8 +146,10 @@ ipcMain.handle('open-external', async (_event, url) => {
 });
 
 ipcMain.handle('convert-to-mp3', async (event, videoPath) => {
+  const rootDir = app.getAppPath();
+
   if (!videoPath || typeof videoPath !== 'string') {
-    return { success: false, error: 'Invalid video path' };
+    videoPath = path.join(rootDir, 'input.mkv');
   }
 
   if (videoPath.startsWith('file://')) {
@@ -155,9 +157,14 @@ ipcMain.handle('convert-to-mp3', async (event, videoPath) => {
   }
 
   if (!fs.existsSync(videoPath)) {
-    return { success: false, error: 'Video file not found' };
+    const fallbackPath = path.join(rootDir, 'input.mkv');
+    if (fs.existsSync(fallbackPath)) {
+      videoPath = fallbackPath;
+    } else {
+      return { success: false, error: 'Video file not found' };
+    }
   }
-  const rootDir = app.getAppPath();
+
   const audioDir = path.join(rootDir, 'audio');
   if (!fs.existsSync(audioDir)) {
     fs.mkdirSync(audioDir, { recursive: true });
