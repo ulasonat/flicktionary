@@ -14,6 +14,8 @@ interface VideoPlayerProps {
   showAudioButton?: boolean;
   /** Callback when user requests audio generation */
   onRequestAudio?: () => void;
+  /** Offset to apply to begin/end timestamps */
+  offset?: number;
 }
 
 const VideoPlayer: React.FC<VideoPlayerProps> = ({
@@ -24,7 +26,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   videoFileName = '',
   externalAudio,
   showAudioButton,
-  onRequestAudio
+  onRequestAudio,
+  offset = 0
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const playerRef = useRef<Player | null>(null);
@@ -78,8 +81,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
 
     // Set up video segment
-    const startTime = Math.max(0, timestampToSeconds(beginTimestamp) - 2);
-    const endTime = timestampToSeconds(endTimestamp) + 2;
+    const startTime = Math.max(
+      0,
+      timestampToSeconds(beginTimestamp) + offset - 2
+    );
+    const endTime = timestampToSeconds(endTimestamp) + offset + 2;
 
     player.ready(() => {
       player.currentTime(startTime);
@@ -123,7 +129,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         playerRef.current = null;
       }
     };
-  }, [videoUrl, beginTimestamp, endTimestamp, videoFileName, externalAudio]);
+  }, [videoUrl, beginTimestamp, endTimestamp, videoFileName, externalAudio, offset]);
 
   const mimeType = getMimeType(videoFileName);
 

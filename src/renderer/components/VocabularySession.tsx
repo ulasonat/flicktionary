@@ -18,6 +18,8 @@ const VocabularySession: React.FC<VocabularySessionProps> = ({
   const [subtitleUrl, setSubtitleUrl] = useState<string>('');
   const [audioReady, setAudioReady] = useState(false);
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
+  const [offset, setOffset] = useState(0);
+  const [showOffsetControl, setShowOffsetControl] = useState(false);
 
   useEffect(() => {
     // Create object URL for video file
@@ -158,8 +160,30 @@ const VocabularySession: React.FC<VocabularySessionProps> = ({
             externalAudio={audioRef.current || undefined}
             showAudioButton={currentIndex === 0 && !audioReady}
             onRequestAudio={handleGenerateAudio}
+            offset={offset}
             key={currentWord.term} // Force remount on word change
           />
+          <div className="offset-controls">
+            {showOffsetControl && (
+              <div className="offset-slider">
+                <input
+                  type="range"
+                  min="-10"
+                  max="10"
+                  step="0.5"
+                  value={offset}
+                  onChange={e => setOffset(parseFloat(e.target.value))}
+                />
+                <span className="offset-label">{offset >= 0 ? `+${offset}` : offset} s</span>
+              </div>
+            )}
+            <button
+              className="options-btn"
+              onClick={() => setShowOffsetControl(!showOffsetControl)}
+            >
+              ⚙️
+            </button>
+          </div>
         </div>
 
         <div className="word-info-section">
