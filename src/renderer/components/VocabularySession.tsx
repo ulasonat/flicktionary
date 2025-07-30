@@ -168,8 +168,8 @@ const VocabularySession: React.FC<VocabularySessionProps> = ({
               <div className="offset-slider">
                 <input
                   type="range"
-                  min="-10"
-                  max="10"
+                  min="-30"
+                  max="30"
                   step="0.5"
                   value={offset}
                   onChange={e => setOffset(parseFloat(e.target.value))}
