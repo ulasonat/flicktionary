@@ -18,6 +18,9 @@ const VocabularySession: React.FC<VocabularySessionProps> = ({
   const [subtitleUrl, setSubtitleUrl] = useState<string>('');
   const [audioReady, setAudioReady] = useState(false);
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
+  const [offset, setOffset] = useState(0);
+  const [showOffsetControl, setShowOffsetControl] = useState(false);
+  const originalSrtText = React.useRef<string | null>(null);
 
   useEffect(() => {
     // Create object URL for video file
@@ -34,7 +37,8 @@ const VocabularySession: React.FC<VocabularySessionProps> = ({
     const reader = new FileReader();
     reader.onload = () => {
       const srtText = reader.result as string;
-      const vttText = srtToVtt(srtText);
+      originalSrtText.current = srtText;
+      const vttText = srtToVtt(srtText, offset);
       const blob = new Blob([vttText], { type: 'text/vtt' });
       url = URL.createObjectURL(blob);
       setSubtitleUrl(url);
@@ -45,15 +49,56 @@ const VocabularySession: React.FC<VocabularySessionProps> = ({
     };
   }, [sessionData.subtitleFile]);
 
-  const srtToVtt = (srt: string): string => {
-    return (
-      'WEBVTT\n\n' +
-      srt
-        .replace(/\r+/g, '')
-        .split('\n')
-        .map(line => line.replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2'))
-        .join('\n')
-    );
+  useEffect(() => {
+    if (!originalSrtText.current) return;
+    const vttText = srtToVtt(originalSrtText.current, offset);
+    const blob = new Blob([vttText], { type: 'text/vtt' });
+    const url = URL.createObjectURL(blob);
+    setSubtitleUrl(prev => {
+      if (prev) URL.revokeObjectURL(prev);
+      return url;
+    });
+    return () => {
+      URL.revokeObjectURL(url);
+    };
+  }, [offset]);
+
+  const srtToVtt = (srt: string, off: number = 0): string => {
+    const timestampToSeconds = (timestamp: string): number => {
+      const [time, ms] = timestamp.split(',');
+      const [h, m, s] = time.split(':').map(Number);
+      return h * 3600 + m * 60 + s + (ms ? parseInt(ms) / 1000 : 0);
+    };
+
+    const formatTimestamp = (seconds: number): string => {
+      if (seconds < 0) seconds = 0;
+      const h = Math.floor(seconds / 3600)
+        .toString()
+        .padStart(2, '0');
+      const m = Math.floor((seconds % 3600) / 60)
+        .toString()
+        .padStart(2, '0');
+      const s = Math.floor(seconds % 60)
+        .toString()
+        .padStart(2, '0');
+      const ms = Math.round((seconds % 1) * 1000)
+        .toString()
+        .padStart(3, '0');
+      return `${h}:${m}:${s}.${ms}`;
+    };
+
+    const lines = srt.replace(/\r+/g, '').split('\n');
+    const converted = lines.map(line => {
+      const match = line.match(/(\d{2}:\d{2}:\d{2},\d{3})\s+-->\s+(\d{2}:\d{2}:\d{2},\d{3})/);
+      if (match) {
+        const start = formatTimestamp(timestampToSeconds(match[1]) + off);
+        const end = formatTimestamp(timestampToSeconds(match[2]) + off);
+        return `${start} --> ${end}`;
+      }
+      return line;
+    });
+
+    return 'WEBVTT\n\n' + converted.join('\n');
   };
 
   const currentWord = wordList[currentIndex];
@@ -158,8 +203,30 @@ const VocabularySession: React.FC<VocabularySessionProps> = ({
             externalAudio={audioRef.current || undefined}
             showAudioButton={currentIndex === 0 && !audioReady}
             onRequestAudio={handleGenerateAudio}
+            offset={offset}
             key={currentWord.term} // Force remount on word change
           />
+          <div className="offset-controls">
+            {showOffsetControl && (
+              <div className="offset-slider">
+                <input
+                  type="range"
+                  min="-30"
+                  max="30"
+                  step="0.5"
+                  value={offset}
+                  onChange={e => setOffset(parseFloat(e.target.value))}
+                />
+                <span className="offset-label">{offset >= 0 ? `+${offset.toFixed(1)}` : offset.toFixed(1)} s</span>
+              </div>
+            )}
+            <button
+              className="options-btn"
+              onClick={() => setShowOffsetControl(!showOffsetControl)}
+            >
+              ⚙️
+            </button>
+          </div>
         </div>
 
         <div className="word-info-section">
