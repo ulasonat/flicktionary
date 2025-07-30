@@ -304,6 +304,7 @@ body {
   align-items: center;
   justify-content: center;
   padding: 20px;
+  position: relative;
 }
 
 .video-player-wrapper {
@@ -324,6 +325,46 @@ body {
   border-radius: 4px;
   cursor: pointer;
   font-size: 1rem;
+}
+
+.offset-controls {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 10;
+}
+
+.options-btn {
+  background: rgba(0, 0, 0, 0.6);
+  border: none;
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.offset-slider {
+  display: flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 5px;
+  border-radius: 4px;
+}
+
+.offset-slider input[type="range"] {
+  width: 200px;
+  margin-right: 8px;
+}
+
+.offset-label {
+  color: #fff;
+  font-size: 0.9rem;
+  min-width: 40px;
+  text-align: center;
 }
 
 .word-info-section {
