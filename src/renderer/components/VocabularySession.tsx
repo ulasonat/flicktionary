@@ -95,7 +95,34 @@ const VocabularySession: React.FC<VocabularySessionProps> = ({
 
   const handleGenerateAudio = async () => {
     try {
-      const result = await window.electronAPI.convertToMp3(sessionData.videoFilePath);
+      const baseRequest = {
+        videoPath: sessionData.videoFilePath,
+        originalFileName: sessionData.videoFile.name
+      } as const;
+
+      let result = await window.electronAPI.convertToMp3(baseRequest);
+
+      const errorMessage = result.error?.toLowerCase() ?? '';
+      const shouldRetryWithData =
+        !result.success &&
+        !!sessionData.videoFile &&
+        (!result.error || errorMessage.includes('not found'));
+
+      if (shouldRetryWithData) {
+        try {
+          const arrayBuffer = await sessionData.videoFile.arrayBuffer();
+          const videoData = new Uint8Array(arrayBuffer);
+          result = await window.electronAPI.convertToMp3({
+            ...baseRequest,
+            videoData
+          });
+        } catch (bufferError) {
+          console.error('Failed to read video file for audio conversion', bufferError);
+          alert('Failed to read the uploaded video for audio conversion.');
+          return;
+        }
+      }
+
       if (result.success && result.path) {
         const url = 'file://' + result.path;
         audioRef.current = new Audio(url);

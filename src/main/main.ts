@@ -6,6 +6,52 @@ import Store from 'electron-store';
 const store = new Store();
 let mainWindow: BrowserWindow | null = null;
 
+const uploadedVideoCache = new Map<string, string>();
+
+const rememberUploadedVideo = (originalName: string, storedPath: string) => {
+  if (!originalName) return;
+
+  const previousPath = uploadedVideoCache.get(originalName);
+  if (previousPath && previousPath !== storedPath && fs.existsSync(previousPath)) {
+    try {
+      const uploadsDir = path.join(app.getPath('userData'), 'uploads');
+      if (previousPath.startsWith(uploadsDir)) {
+        fs.unlinkSync(previousPath);
+      }
+    } catch (cleanupError) {
+      console.warn('Failed to remove cached uploaded video', cleanupError);
+    }
+  }
+
+  uploadedVideoCache.set(originalName, storedPath);
+};
+
+const toBuffer = (data: any): Buffer | null => {
+  if (!data) return null;
+
+  if (Buffer.isBuffer(data)) {
+    return data;
+  }
+
+  if (data instanceof Uint8Array) {
+    return Buffer.from(data);
+  }
+
+  if (data instanceof ArrayBuffer) {
+    return Buffer.from(new Uint8Array(data));
+  }
+
+  if (data?.type === 'Buffer' && Array.isArray(data.data)) {
+    return Buffer.from(data.data);
+  }
+
+  if (Array.isArray(data)) {
+    return Buffer.from(data);
+  }
+
+  return null;
+};
+
 // Enable ffmpeg for subtitle extraction
 const ffmpeg = require('fluent-ffmpeg');
 const ffmpegPath = require('ffmpeg-static');
@@ -91,8 +137,22 @@ ipcMain.handle('get-file-path', async (event, fileData, originalFileName = 'vide
   // Preserve original file extension
   const extension = path.extname(originalFileName) || '.mp4';
   const baseName = path.basename(originalFileName, extension);
-  const tempPath = path.join(app.getPath('temp'), `${baseName}-${Date.now()}${extension}`);
-  fs.writeFileSync(tempPath, Buffer.from(fileData));
+
+  const uploadsDir = path.join(app.getPath('userData'), 'uploads');
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+
+  const safeBaseName = baseName.replace(/[^a-z0-9-_]/gi, '_') || 'video';
+  const tempPath = path.join(uploadsDir, `${safeBaseName}-${Date.now()}${extension}`);
+  const buffer = toBuffer(fileData);
+  if (!buffer) {
+    throw new Error('Unable to persist uploaded video');
+  }
+
+  fs.writeFileSync(tempPath, buffer);
+
+  rememberUploadedVideo(originalFileName, tempPath);
   return tempPath;
 });
 
@@ -145,23 +205,65 @@ ipcMain.handle('open-external', async (_event, url) => {
   return { success: true };
 });
 
-ipcMain.handle('convert-to-mp3', async (event, videoPath) => {
+ipcMain.handle('convert-to-mp3', async (event, payload) => {
   const rootDir = app.getAppPath();
 
-  if (!videoPath || typeof videoPath !== 'string') {
+  let videoPath: string | undefined;
+  let originalFileName: string | undefined;
+  let videoData: any;
+
+  if (typeof payload === 'string' || payload === undefined) {
+    videoPath = payload as string | undefined;
+  } else if (payload && typeof payload === 'object') {
+    ({ videoPath, originalFileName, videoData } = payload);
+  }
+
+  const cachedByName = originalFileName ? uploadedVideoCache.get(originalFileName) : undefined;
+
+  if (!videoPath && cachedByName && fs.existsSync(cachedByName)) {
+    videoPath = cachedByName;
+  }
+
+  if (!videoPath) {
     videoPath = path.join(rootDir, 'input.mkv');
   }
 
-  if (videoPath.startsWith('file://')) {
+  if (videoPath && videoPath.startsWith('file://')) {
     videoPath = videoPath.replace('file://', '');
   }
 
-  if (!fs.existsSync(videoPath)) {
-    const fallbackPath = path.join(rootDir, 'input.mkv');
-    if (fs.existsSync(fallbackPath)) {
-      videoPath = fallbackPath;
+  let tempVideoPath: string | null = null;
+
+  const ensureCachedPath = () => {
+    if (cachedByName && fs.existsSync(cachedByName)) {
+      return cachedByName;
+    }
+    return null;
+  };
+
+  if (!videoPath || !fs.existsSync(videoPath)) {
+    const existingCachedPath = ensureCachedPath();
+    if (existingCachedPath) {
+      videoPath = existingCachedPath;
+    } else if (videoData) {
+      const buffer = toBuffer(videoData);
+      if (!buffer) {
+        return { success: false, error: 'Unable to access uploaded video data' };
+      }
+
+      const parsedOriginal = originalFileName ? path.parse(originalFileName) : null;
+      const extension = parsedOriginal?.ext || '.mp4';
+      const tempBaseName = parsedOriginal?.name || 'video';
+      tempVideoPath = path.join(app.getPath('temp'), `${tempBaseName}-${Date.now()}${extension}`);
+      fs.writeFileSync(tempVideoPath, buffer);
+      videoPath = tempVideoPath;
     } else {
-      return { success: false, error: 'Video file not found' };
+      const fallbackPath = path.join(rootDir, 'input.mkv');
+      if (fs.existsSync(fallbackPath)) {
+        videoPath = fallbackPath;
+      } else {
+        return { success: false, error: 'Video file not found' };
+      }
     }
   }
 
@@ -170,8 +272,8 @@ ipcMain.handle('convert-to-mp3', async (event, videoPath) => {
     fs.mkdirSync(audioDir, { recursive: true });
   }
 
-  const baseName = path.parse(videoPath).name;
-  const outputPath = path.join(audioDir, `${baseName}.mp3`);
+  const outputBase = originalFileName ? path.parse(originalFileName).name : path.parse(videoPath).name;
+  const outputPath = path.join(audioDir, `${outputBase}.mp3`);
 
   return new Promise((resolve, reject) => {
     const parentWindow = BrowserWindow.fromWebContents(event.sender);
@@ -189,6 +291,17 @@ ipcMain.handle('convert-to-mp3', async (event, videoPath) => {
     });
 
     let ffmpegProcess: any = null;
+
+    const cleanupTempFile = () => {
+      if (tempVideoPath && fs.existsSync(tempVideoPath)) {
+        try {
+          fs.unlinkSync(tempVideoPath);
+        } catch (cleanupError) {
+          console.warn('Failed to remove temporary video file', cleanupError);
+        }
+        tempVideoPath = null;
+      }
+    };
 
     const progressHTML = `<!DOCTYPE html>
     <html>
@@ -226,6 +339,7 @@ ipcMain.handle('convert-to-mp3', async (event, videoPath) => {
         ffmpegProcess.kill('SIGKILL');
         ffmpegProcess = null;
       }
+      cleanupTempFile();
     });
 
     const command = ffmpeg(videoPath)
@@ -241,6 +355,7 @@ ipcMain.handle('convert-to-mp3', async (event, videoPath) => {
           progressWin.webContents.send('conversion-done');
         }
         resolve({ success: true, path: outputPath });
+        cleanupTempFile();
         setTimeout(() => {
           if (!progressWin.isDestroyed()) progressWin.close();
         }, 600);
@@ -249,6 +364,7 @@ ipcMain.handle('convert-to-mp3', async (event, videoPath) => {
         if (!progressWin.isDestroyed()) {
           progressWin.webContents.send('conversion-done');
         }
+        cleanupTempFile();
         reject(err);
         setTimeout(() => {
           if (!progressWin.isDestroyed()) progressWin.close();
