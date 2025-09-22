@@ -6,6 +6,52 @@ import Store from 'electron-store';
 const store = new Store();
 let mainWindow: BrowserWindow | null = null;
 
+const uploadedVideoCache = new Map<string, string>();
+
+const rememberUploadedVideo = (originalName: string, storedPath: string) => {
+  if (!originalName) return;
+
+  const previousPath = uploadedVideoCache.get(originalName);
+  if (previousPath && previousPath !== storedPath && fs.existsSync(previousPath)) {
+    try {
+      const uploadsDir = path.join(app.getPath('userData'), 'uploads');
+      if (previousPath.startsWith(uploadsDir)) {
+        fs.unlinkSync(previousPath);
+      }
+    } catch (cleanupError) {
+      console.warn('Failed to remove cached uploaded video', cleanupError);
+    }
+  }
+
+  uploadedVideoCache.set(originalName, storedPath);
+};
+
+const toBuffer = (data: any): Buffer | null => {
+  if (!data) return null;
+
+  if (Buffer.isBuffer(data)) {
+    return data;
+  }
+
+  if (data instanceof Uint8Array) {
+    return Buffer.from(data);
+  }
+
+  if (data instanceof ArrayBuffer) {
+    return Buffer.from(new Uint8Array(data));
+  }
+
+  if (data?.type === 'Buffer' && Array.isArray(data.data)) {
+    return Buffer.from(data.data);
+  }
+
+  if (Array.isArray(data)) {
+    return Buffer.from(data);
+  }
+
+  return null;
+};
+
 // Enable ffmpeg for subtitle extraction
 const ffmpeg = require('fluent-ffmpeg');
 const ffmpegPath = require('ffmpeg-static');
@@ -91,8 +137,22 @@ ipcMain.handle('get-file-path', async (event, fileData, originalFileName = 'vide
   // Preserve original file extension
   const extension = path.extname(originalFileName) || '.mp4';
   const baseName = path.basename(originalFileName, extension);
-  const tempPath = path.join(app.getPath('temp'), `${baseName}-${Date.now()}${extension}`);
-  fs.writeFileSync(tempPath, Buffer.from(fileData));
+
+  const uploadsDir = path.join(app.getPath('userData'), 'uploads');
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+
+  const safeBaseName = baseName.replace(/[^a-z0-9-_]/gi, '_') || 'video';
+  const tempPath = path.join(uploadsDir, `${safeBaseName}-${Date.now()}${extension}`);
+  const buffer = toBuffer(fileData);
+  if (!buffer) {
+    throw new Error('Unable to persist uploaded video');
+  }
+
+  fs.writeFileSync(tempPath, buffer);
+
+  rememberUploadedVideo(originalFileName, tempPath);
   return tempPath;
 });
 
@@ -158,30 +218,36 @@ ipcMain.handle('convert-to-mp3', async (event, payload) => {
     ({ videoPath, originalFileName, videoData } = payload);
   }
 
+  const cachedByName = originalFileName ? uploadedVideoCache.get(originalFileName) : undefined;
+
+  if (!videoPath && cachedByName && fs.existsSync(cachedByName)) {
+    videoPath = cachedByName;
+  }
+
   if (!videoPath) {
     videoPath = path.join(rootDir, 'input.mkv');
   }
 
-  if (videoPath.startsWith('file://')) {
+  if (videoPath && videoPath.startsWith('file://')) {
     videoPath = videoPath.replace('file://', '');
   }
 
   let tempVideoPath: string | null = null;
 
-  if (!fs.existsSync(videoPath)) {
-    if (videoData) {
-      let buffer: Buffer;
-      if (Buffer.isBuffer(videoData)) {
-        buffer = videoData;
-      } else if (videoData instanceof Uint8Array) {
-        buffer = Buffer.from(videoData);
-      } else if (videoData instanceof ArrayBuffer) {
-        buffer = Buffer.from(new Uint8Array(videoData));
-      } else if (videoData?.type === 'Buffer' && Array.isArray(videoData.data)) {
-        buffer = Buffer.from(videoData.data);
-      } else if (Array.isArray(videoData)) {
-        buffer = Buffer.from(videoData);
-      } else {
+  const ensureCachedPath = () => {
+    if (cachedByName && fs.existsSync(cachedByName)) {
+      return cachedByName;
+    }
+    return null;
+  };
+
+  if (!videoPath || !fs.existsSync(videoPath)) {
+    const existingCachedPath = ensureCachedPath();
+    if (existingCachedPath) {
+      videoPath = existingCachedPath;
+    } else if (videoData) {
+      const buffer = toBuffer(videoData);
+      if (!buffer) {
         return { success: false, error: 'Unable to access uploaded video data' };
       }
 
