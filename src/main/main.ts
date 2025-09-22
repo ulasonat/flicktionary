@@ -145,10 +145,20 @@ ipcMain.handle('open-external', async (_event, url) => {
   return { success: true };
 });
 
-ipcMain.handle('convert-to-mp3', async (event, videoPath) => {
+ipcMain.handle('convert-to-mp3', async (event, payload) => {
   const rootDir = app.getAppPath();
 
-  if (!videoPath || typeof videoPath !== 'string') {
+  let videoPath: string | undefined;
+  let originalFileName: string | undefined;
+  let videoData: any;
+
+  if (typeof payload === 'string' || payload === undefined) {
+    videoPath = payload as string | undefined;
+  } else if (payload && typeof payload === 'object') {
+    ({ videoPath, originalFileName, videoData } = payload);
+  }
+
+  if (!videoPath) {
     videoPath = path.join(rootDir, 'input.mkv');
   }
 
@@ -156,12 +166,38 @@ ipcMain.handle('convert-to-mp3', async (event, videoPath) => {
     videoPath = videoPath.replace('file://', '');
   }
 
+  let tempVideoPath: string | null = null;
+
   if (!fs.existsSync(videoPath)) {
-    const fallbackPath = path.join(rootDir, 'input.mkv');
-    if (fs.existsSync(fallbackPath)) {
-      videoPath = fallbackPath;
+    if (videoData) {
+      let buffer: Buffer;
+      if (Buffer.isBuffer(videoData)) {
+        buffer = videoData;
+      } else if (videoData instanceof Uint8Array) {
+        buffer = Buffer.from(videoData);
+      } else if (videoData instanceof ArrayBuffer) {
+        buffer = Buffer.from(new Uint8Array(videoData));
+      } else if (videoData?.type === 'Buffer' && Array.isArray(videoData.data)) {
+        buffer = Buffer.from(videoData.data);
+      } else if (Array.isArray(videoData)) {
+        buffer = Buffer.from(videoData);
+      } else {
+        return { success: false, error: 'Unable to access uploaded video data' };
+      }
+
+      const parsedOriginal = originalFileName ? path.parse(originalFileName) : null;
+      const extension = parsedOriginal?.ext || '.mp4';
+      const tempBaseName = parsedOriginal?.name || 'video';
+      tempVideoPath = path.join(app.getPath('temp'), `${tempBaseName}-${Date.now()}${extension}`);
+      fs.writeFileSync(tempVideoPath, buffer);
+      videoPath = tempVideoPath;
     } else {
-      return { success: false, error: 'Video file not found' };
+      const fallbackPath = path.join(rootDir, 'input.mkv');
+      if (fs.existsSync(fallbackPath)) {
+        videoPath = fallbackPath;
+      } else {
+        return { success: false, error: 'Video file not found' };
+      }
     }
   }
 
@@ -170,8 +206,8 @@ ipcMain.handle('convert-to-mp3', async (event, videoPath) => {
     fs.mkdirSync(audioDir, { recursive: true });
   }
 
-  const baseName = path.parse(videoPath).name;
-  const outputPath = path.join(audioDir, `${baseName}.mp3`);
+  const outputBase = originalFileName ? path.parse(originalFileName).name : path.parse(videoPath).name;
+  const outputPath = path.join(audioDir, `${outputBase}.mp3`);
 
   return new Promise((resolve, reject) => {
     const parentWindow = BrowserWindow.fromWebContents(event.sender);
@@ -189,6 +225,17 @@ ipcMain.handle('convert-to-mp3', async (event, videoPath) => {
     });
 
     let ffmpegProcess: any = null;
+
+    const cleanupTempFile = () => {
+      if (tempVideoPath && fs.existsSync(tempVideoPath)) {
+        try {
+          fs.unlinkSync(tempVideoPath);
+        } catch (cleanupError) {
+          console.warn('Failed to remove temporary video file', cleanupError);
+        }
+        tempVideoPath = null;
+      }
+    };
 
     const progressHTML = `<!DOCTYPE html>
     <html>
@@ -226,6 +273,7 @@ ipcMain.handle('convert-to-mp3', async (event, videoPath) => {
         ffmpegProcess.kill('SIGKILL');
         ffmpegProcess = null;
       }
+      cleanupTempFile();
     });
 
     const command = ffmpeg(videoPath)
@@ -241,6 +289,7 @@ ipcMain.handle('convert-to-mp3', async (event, videoPath) => {
           progressWin.webContents.send('conversion-done');
         }
         resolve({ success: true, path: outputPath });
+        cleanupTempFile();
         setTimeout(() => {
           if (!progressWin.isDestroyed()) progressWin.close();
         }, 600);
@@ -249,6 +298,7 @@ ipcMain.handle('convert-to-mp3', async (event, videoPath) => {
         if (!progressWin.isDestroyed()) {
           progressWin.webContents.send('conversion-done');
         }
+        cleanupTempFile();
         reject(err);
         setTimeout(() => {
           if (!progressWin.isDestroyed()) progressWin.close();
