@@ -95,7 +95,12 @@ const VocabularySession: React.FC<VocabularySessionProps> = ({
 
   const handleGenerateAudio = async () => {
     try {
-      const result = await window.electronAPI.convertToMp3(sessionData.videoFilePath);
+      const fileData = await sessionData.videoFile.arrayBuffer();
+      const result = await window.electronAPI.convertToMp3({
+        filePath: sessionData.videoFilePath,
+        fileName: sessionData.videoFile.name,
+        data: fileData
+      });
       if (result.success && result.path) {
         const url = 'file://' + result.path;
         audioRef.current = new Audio(url);

@@ -9,5 +9,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveApiKey: (apiKey) => ipcRenderer.invoke('save-api-key', apiKey),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
   readFile: (filePath) => ipcRenderer.invoke('read-file', filePath),
-  convertToMp3: (videoPath) => ipcRenderer.invoke('convert-to-mp3', videoPath)
+  convertToMp3: (source) => ipcRenderer.invoke('convert-to-mp3', source)
 });

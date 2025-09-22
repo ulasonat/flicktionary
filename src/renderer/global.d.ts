@@ -13,7 +13,15 @@ declare global {
       saveApiKey: (apiKey: string) => Promise<{ success: boolean }>;
       openExternal: (url: string) => Promise<{ success: boolean }>;
       readFile: (filePath: string) => Promise<{ success: boolean; content?: string; error?: string }>;
-      convertToMp3: (videoPath: string) => Promise<{ success: boolean; path?: string; error?: string }>;
+      convertToMp3: (
+        source:
+          | string
+          | {
+              filePath?: string;
+              data?: ArrayBuffer;
+              fileName?: string;
+            }
+      ) => Promise<{ success: boolean; path?: string; error?: string }>;
     };
   }
 }
