@@ -1,10 +1,12 @@
 import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as zlib from 'zlib';
 import Store from 'electron-store';
 
 const store = new Store();
 let mainWindow: BrowserWindow | null = null;
+const OPEN_SUBTITLES_USER_AGENT = 'FlicktionarySubFetcher 1.0';
 
 // Enable ffmpeg for subtitle extraction
 const ffmpeg = require('fluent-ffmpeg');
@@ -130,6 +132,302 @@ ipcMain.handle('save-api-key', async (event, apiKey) => {
   store.set('gemini-api-key', apiKey);
   return { success: true };
 });
+
+ipcMain.handle('get-gemini-api-enabled', async () => {
+  return store.get('gemini-api-enabled', false);
+});
+
+ipcMain.handle('set-gemini-api-enabled', async (_event, enabled) => {
+  const value = Boolean(enabled);
+  store.set('gemini-api-enabled', value);
+  return { success: true, enabled: value };
+});
+
+ipcMain.handle('get-auto-generate-enabled', async () => {
+  return store.get('gemini-auto-generate-enabled', false);
+});
+
+ipcMain.handle('set-auto-generate-enabled', async (_event, enabled) => {
+  const value = Boolean(enabled);
+  store.set('gemini-auto-generate-enabled', value);
+  return { success: true, enabled: value };
+});
+
+ipcMain.handle('fetch-subtitles', async (_event, fileName: string) => {
+  try {
+    if (!fileName || typeof fileName !== 'string') {
+      throw new Error('A video file name is required');
+    }
+
+    const metadata = parseVideoFileName(fileName);
+    if (!metadata.title) {
+      throw new Error('Unable to derive a movie title from the file name');
+    }
+
+    const imdbId = await resolveImdbId(metadata.title, metadata.year);
+    if (!imdbId) {
+      throw new Error('Unable to resolve IMDb title for subtitle search');
+    }
+
+    const subtitleText = await downloadBestSubtitle(imdbId);
+    if (!subtitleText) {
+      throw new Error('No English subtitles found for this title');
+    }
+
+    return {
+      success: true,
+      subtitle: subtitleText,
+      metadata: {
+        title: metadata.title,
+        year: metadata.year || null,
+        imdbId
+      }
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error?.message || 'Failed to fetch subtitles'
+    };
+  }
+});
+
+interface ParsedVideoMetadata {
+  title: string;
+  year?: number;
+}
+
+const RELEASE_TOKENS = new Set([
+  '1080p', '2160p', '720p', '480p', '576p', '4k', '8k', 'hdr', 'dv', 'webrip', 'web', 'hdtv',
+  'bluray', 'brrip', 'bdrip', 'dvdrip', 'remux', 'x264', 'x265', 'h264', 'h265',
+  'hevc', '10bit', '8bit', 'aac', 'dts', 'truehd', 'atmos', 'xvid', 'yify', 'yts', 'imax',
+  'nf', 'amzn', 'webdl', 'dvdscr', 'cam', 'proper', 'repack', 'internal',
+  'dual', 'audio', 'subs', 'extended', 'cut', 'hdrip', 'hc', 'mkv', 'mp4', 'avi', 'mov',
+  'ytsmx', 'rarbg', 'microhd', 'br', 'it', 'us', 'multi', 'subbed', 'uncensored'
+]);
+
+const ROMAN_NUMERAL_REGEX = /^(?=[MDCLXVI])(M{0,4}(CM)?D?(CD)?C{0,3}(XC)?L?(XL)?X{0,3}(IX)?V?(IV)?I{0,3})$/i;
+
+function normaliseToken(token: string): string {
+  return token.replace(/[^a-z0-9]/gi, '').toLowerCase();
+}
+
+function titleCaseToken(token: string): string {
+  if (!token) {
+    return token;
+  }
+  if (ROMAN_NUMERAL_REGEX.test(token)) {
+    return token.toUpperCase();
+  }
+  if (token.length <= 2) {
+    return token.toLowerCase();
+  }
+  return token.charAt(0).toUpperCase() + token.slice(1).toLowerCase();
+}
+
+function parseVideoFileName(fileName: string): ParsedVideoMetadata {
+  const withoutExtension = fileName.replace(/\.[^.]+$/, '');
+  const cleaned = withoutExtension
+    .replace(/[\[\]\(\)]/g, ' ')
+    .replace(/[._-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const tokens = cleaned.split(' ');
+  const titleTokens: string[] = [];
+  let detectedYear: number | undefined;
+
+  for (const rawToken of tokens) {
+    if (!rawToken) {
+      continue;
+    }
+
+    const token = rawToken.trim();
+    const normalised = normaliseToken(token);
+
+    const yearMatch = token.match(/^(19|20)\d{2}$/);
+    if (yearMatch && !detectedYear) {
+      detectedYear = Number(token);
+      break;
+    }
+
+    if (!normalised) {
+      continue;
+    }
+
+    if (RELEASE_TOKENS.has(normalised)) {
+      continue;
+    }
+
+    if (/^\d+p$/.test(normalised) || /^\d+k$/.test(normalised)) {
+      continue;
+    }
+
+    if (/^s\d{2}e\d{2}$/i.test(token)) {
+      continue;
+    }
+
+    titleTokens.push(titleCaseToken(token));
+  }
+
+  const title = titleTokens.join(' ').trim();
+
+  return {
+    title,
+    year: detectedYear
+  };
+}
+
+function tokeniseForComparison(input: string): Set<string> {
+  return new Set(
+    input
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter(Boolean)
+  );
+}
+
+function computeTokenSimilarity(a: string, b: string): number {
+  const setA = tokeniseForComparison(a);
+  const setB = tokeniseForComparison(b);
+  if (setA.size === 0 || setB.size === 0) {
+    return 0;
+  }
+  let intersection = 0;
+  for (const token of setA) {
+    if (setB.has(token)) {
+      intersection += 1;
+    }
+  }
+  const union = new Set([...setA, ...setB]).size;
+  return intersection / union;
+}
+
+async function resolveImdbId(title: string, year?: number): Promise<string | null> {
+  const trimmed = title.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const firstChar = trimmed[0].toLowerCase().match(/[a-z0-9]/)?.[0] || '0';
+  const suggestionUrl = `https://v3.sg.media-imdb.com/suggestion/${firstChar}/${encodeURIComponent(trimmed)}.json`;
+  const response = await fetch(suggestionUrl, {
+    headers: {
+      'User-Agent': OPEN_SUBTITLES_USER_AGENT,
+      'Accept': 'application/json'
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`IMDb lookup failed (${response.status})`);
+  }
+
+  const data: any = await response.json();
+  const candidates: any[] = Array.isArray(data?.d) ? data.d : [];
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  let bestId: string | null = null;
+  let bestScore = -1;
+
+  for (const candidate of candidates) {
+    if (!candidate?.id || !candidate?.l) {
+      continue;
+    }
+
+    if (candidate.qid && !['movie', 'feature', 'tvMovie'].includes(candidate.qid)) {
+      continue;
+    }
+
+    const candidateYear = typeof candidate.y === 'number' ? candidate.y : undefined;
+    const similarity = computeTokenSimilarity(trimmed, candidate.l);
+    let score = similarity;
+
+    if (year && candidateYear) {
+      const diff = Math.abs(candidateYear - year);
+      score += diff === 0 ? 0.4 : diff === 1 ? 0.2 : 0;
+    }
+
+    if (candidateYear && !year) {
+      // Prefer older titles when no year provided but candidate matches high similarity
+      score += 0.05;
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestId = candidate.id;
+    }
+  }
+
+  return bestId;
+}
+
+async function downloadBestSubtitle(imdbId: string): Promise<string | null> {
+  const imdbNumeric = imdbId.replace(/^tt/, '');
+  if (!imdbNumeric) {
+    return null;
+  }
+
+  const searchUrl = `https://rest.opensubtitles.org/search/imdbid-${imdbNumeric}/sublanguageid-eng`;
+  const response = await fetch(searchUrl, {
+    headers: {
+      'User-Agent': OPEN_SUBTITLES_USER_AGENT,
+      'Accept': 'application/json'
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`OpenSubtitles search failed (${response.status})`);
+  }
+
+  const results: any[] = await response.json();
+  if (!Array.isArray(results) || results.length === 0) {
+    return null;
+  }
+
+  const sorted = [...results].sort((a, b) => {
+    const ratingDiff = (Number(b?.SubRating) || 0) - (Number(a?.SubRating) || 0);
+    if (ratingDiff !== 0) {
+      return ratingDiff;
+    }
+    return (Number(b?.SubDownloadsCnt) || 0) - (Number(a?.SubDownloadsCnt) || 0);
+  });
+
+  const candidate = sorted.find(item => item?.SubFormat === 'srt' && item?.SubDownloadLink) || sorted[0];
+  const downloadUrl: string | undefined = candidate?.SubDownloadLink || candidate?.ZipDownloadLink;
+
+  if (!downloadUrl) {
+    throw new Error('Subtitle download link missing');
+  }
+
+  const downloadResponse = await fetch(downloadUrl, {
+    headers: {
+      'User-Agent': OPEN_SUBTITLES_USER_AGENT
+    }
+  });
+
+  if (!downloadResponse.ok) {
+    throw new Error(`Subtitle download failed (${downloadResponse.status})`);
+  }
+
+  let buffer = Buffer.from(await downloadResponse.arrayBuffer());
+
+  if (downloadUrl.endsWith('.gz')) {
+    try {
+      buffer = zlib.gunzipSync(buffer);
+    } catch (error) {
+      throw new Error('Failed to decompress subtitle archive');
+    }
+  }
+
+  let subtitleText = buffer.toString('utf8');
+  if (!subtitleText.trim()) {
+    subtitleText = buffer.toString('latin1');
+  }
+
+  return subtitleText;
+}
 
 ipcMain.handle('read-file', async (_event, filePath) => {
   try {

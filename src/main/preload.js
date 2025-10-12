@@ -7,6 +7,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   extractSubtitles: (videoPath) => ipcRenderer.invoke('extract-subtitles', videoPath),
   getApiKey: () => ipcRenderer.invoke('get-api-key'),
   saveApiKey: (apiKey) => ipcRenderer.invoke('save-api-key', apiKey),
+  getGeminiApiPreference: () => ipcRenderer.invoke('get-gemini-api-enabled'),
+  setGeminiApiPreference: (enabled) => ipcRenderer.invoke('set-gemini-api-enabled', enabled),
+  getAutoGeneratePreference: () => ipcRenderer.invoke('get-auto-generate-enabled'),
+  setAutoGeneratePreference: (enabled) => ipcRenderer.invoke('set-auto-generate-enabled', enabled),
+  fetchSubtitles: (fileName) => ipcRenderer.invoke('fetch-subtitles', fileName),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
   readFile: (filePath) => ipcRenderer.invoke('read-file', filePath),
   convertToMp3: (videoPath) => ipcRenderer.invoke('convert-to-mp3', videoPath)
