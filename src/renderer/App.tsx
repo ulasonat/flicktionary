@@ -17,6 +17,10 @@ const App: React.FC = () => {
     }
   };
 
+  const handleExitSession = () => {
+    setSessionStarted(false);
+  };
+
   const handleSessionComplete = async (results: WordResult[]) => {
     // Collect words the user ever marked as unknown
     const unknownWords = results
@@ -59,10 +63,19 @@ const App: React.FC = () => {
         />
       ) : (
         sessionData && (
-          <VocabularySession
-            sessionData={sessionData}
-            onComplete={handleSessionComplete}
-          />
+          <div className="session-wrapper">
+            <button
+              className="back-button"
+              onClick={handleExitSession}
+              aria-label="Exit session"
+            >
+              ← Back
+            </button>
+            <VocabularySession
+              sessionData={sessionData}
+              onComplete={handleSessionComplete}
+            />
+          </div>
         )
       )}
     </div>
